@@ -64,7 +64,7 @@
                     </div>
                 </div>
 
-                <!-- 手續費設定 (依照您的截圖風格) -->
+                <!-- 手續費設定 -->
                 <div class="mt-2">
                     <label class="block text-xs font-medium text-gray-500 mb-2">交易成本設定 (%)</label>
                     <div class="grid grid-cols-2 gap-3">
@@ -96,6 +96,12 @@
                     鎖定
                 </button>
             </div>
+
+            <!-- 新增一個重置縮放的按鈕，方便使用者迷路時按回來 -->
+            <button type="button" onclick="resetZoom()"
+                class="w-full mt-2 text-xs text-gray-400 hover:text-gray-600 underline">
+                重置圖表縮放 (Reset Zoom)
+            </button>
         </div>
     </div>
 
@@ -129,7 +135,7 @@
 
         <!-- 2. 圖表切換區 -->
         <div class="bg-white p-4 rounded-xl shadow-sm h-[450px]">
-            <h3 class="font-bold text-gray-700 mb-2">績效比較與走勢圖</h3>
+            <h3 class="font-bold text-gray-700 mb-2">績效比較與走勢圖 (可滾輪縮放)</h3>
             <div class="relative w-full h-[380px] flex items-center justify-center bg-gray-50 rounded border border-dashed border-gray-200"
                 id="chartContainer">
                 <p class="text-gray-400 text-sm" id="chartPlaceholder">請輸入股票代碼並執行回測以顯示圖表</p>
@@ -184,30 +190,23 @@
         console.error("Date init failed:", e);
     }
 
-    // --- 關鍵修改：智慧手續費判斷邏輯 ---
     document.getElementById('ticker').addEventListener('input', function (e) {
         const val = e.target.value.trim().toUpperCase();
         const hint = document.getElementById('tickerHint');
         const buyInput = document.getElementById('buy_fee');
         const sellInput = document.getElementById('sell_fee');
 
-        // 判斷邏輯
         if (/^\d/.test(val) || val.endsWith('.TW')) {
-            // 是台股 (數字開頭 或 .TW 結尾)
-
             if (val.startsWith('00')) {
-                // 情境 1: 台股 ETF (00開頭)
                 buyInput.value = 0.1425;
-                sellInput.value = 0.2425; // 0.1425 + 0.1 (稅)
+                sellInput.value = 0.2425;
                 hint.innerText = "偵測到: 台股 ETF";
             } else {
-                // 情境 2: 台股 個股
                 buyInput.value = 0.1425;
-                sellInput.value = 0.4425; // 0.1425 + 0.3 (稅)
+                sellInput.value = 0.4425;
                 hint.innerText = "偵測到: 台股 個股";
             }
         } else if (val.length > 0) {
-            // 情境 3: 美股 (英文代碼)
             buyInput.value = 0.1;
             sellInput.value = 0.1;
             hint.innerText = "偵測到: 美股";
@@ -345,7 +344,7 @@
         };
 
         const bhDataset = {
-            label: '買進持有 (Benchmark)',
+            label: '買進並持有',
             data: bhData ? bhData.map(d => d.value) : [],
             borderColor: '#9ca3af',
             borderWidth: 2,
@@ -404,15 +403,34 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 interaction: { mode: 'index', intersect: false },
-                scales: { y: { display: true, position: 'right' } },
+                scales: {
+                    x: {
+                        ticks: {
+                            maxTicksLimit: 12 // 避免 X 軸標籤太擠
+                        }
+                    },
+                    y: {
+                        display: true,
+                        position: 'right'
+                    }
+                },
                 plugins: {
+                    zoom: {
+                        zoom: {
+                            wheel: { enabled: true }, // 啟用滾輪
+                            pinch: { enabled: true }, // 啟用手機捏合
+                            mode: 'x', // 只縮放 X 軸 (時間)
+                        },
+                        pan: {
+                            enabled: true, // 啟用拖曳
+                            mode: 'x',
+                        }
+                    },
                     tooltip: {
                         callbacks: {
                             label: function (context) {
                                 let label = context.dataset.label || '';
-                                if (label) {
-                                    label += ': ';
-                                }
+                                if (label) { label += ': '; }
                                 if (context.parsed.y !== null) {
                                     label += new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(context.parsed.y);
                                 }
@@ -461,6 +479,13 @@
             row.innerHTML += `<td class="border font-bold ${totalClass} bg-gray-100">${yearTotal.toFixed(1)}%</td>`;
             tbody.appendChild(row);
         });
+    }
+
+    // 輔助函式：重置縮放
+    function resetZoom() {
+        if (mainChart) {
+            mainChart.resetZoom();
+        }
     }
 </script>
 {% endblock %}
