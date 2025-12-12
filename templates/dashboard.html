@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <!-- 左側：控制面板 -->
+    <div class="bg-white p-6 rounded-lg shadow-md md:col-span-1">
+        <h2 class="text-xl font-bold mb-4 border-b pb-2">策略參數設定</h2>
+        <form id="backtestForm" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700">股票代碼</label>
+                <input type="text" id="ticker" value="SPY" class="mt-1 block w-full border rounded-md p-2" disabled>
+                <p class="text-xs text-gray-500">目前僅支援 Demo 數據 (SPY)</p>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">短期均線 (Fast MA)</label>
+                <input type="number" id="ma_short" value="10" class="mt-1 block w-full border rounded-md p-2">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">長期均線 (Slow MA)</label>
+                <input type="number" id="ma_long" value="20" class="mt-1 block w-full border rounded-md p-2">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">RSI 週期</label>
+                <input type="number" id="rsi_period" value="14" class="mt-1 block w-full border rounded-md p-2">
+            </div>
+            <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition">
+                執行回測
+            </button>
+        </form>
+
+        <div class="mt-8 bg-gray-50 p-4 rounded">
+            <h3 class="font-bold mb-2">策略邏輯說明</h3>
+            <p class="text-sm text-gray-600">
+                本策略採用雙均線交叉系統結合 RSI 過濾。<br>
+                1. <strong>買入：</strong>當短均線向上突破長均線，且 RSI < 70。<br>
+                    2. <strong>賣出：</strong>當短均線向下跌破長均線。
+            </p>
+        </div>
+    </div>
+
+    <!-- 右側：結果展示 -->
+    <div class="bg-white p-6 rounded-lg shadow-md md:col-span-2">
+        <h2 class="text-xl font-bold mb-4 border-b pb-2">回測績效報告</h2>
+
+        <!-- 績效卡片 -->
+        <div class="grid grid-cols-3 gap-4 mb-6">
+            <div class="bg-blue-50 p-4 rounded text-center">
+                <p class="text-sm text-gray-500">總報酬率</p>
+                <p class="text-2xl font-bold text-blue-600" id="res_return">--%</p>
+            </div>
+            <div class="bg-red-50 p-4 rounded text-center">
+                <p class="text-sm text-gray-500">最大回撤 (MDD)</p>
+                <p class="text-2xl font-bold text-red-600" id="res_mdd">--%</p>
+            </div>
+            <div class="bg-green-50 p-4 rounded text-center">
+                <p class="text-sm text-gray-500">勝率</p>
+                <p class="text-2xl font-bold text-green-600" id="res_win">--%</p>
+            </div>
+        </div>
+
+        <!-- 圖表區 -->
+        <div class="relative h-96 w-full">
+            <canvas id="equityChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<script>
+    let chartInstance = null;
+
+    document.getElementById('backtestForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        // 收集數據
+        const data = {
+            ticker: document.getElementById('ticker').value,
+            ma_short: parseInt(document.getElementById('ma_short').value),
+            ma_long: parseInt(document.getElementById('ma_long').value),
+            rsi_period: parseInt(document.getElementById('rsi_period').value)
+        };
+
+        // 呼叫 API
+        const response = await fetch('/api/backtest', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+
+        // 更新數據卡片
+        document.getElementById('res_return').innerText = result.return_pct + '%';
+        document.getElementById('res_mdd').innerText = result.max_drawdown + '%';
+        document.getElementById('res_win').innerText = result.win_rate + '%';
+
+        // 繪製圖表
+        renderChart(result.equity_curve);
+    });
+
+    function renderChart(equityData) {
+        const ctx = document.getElementById('equityChart').getContext('2d');
+        const labels = equityData.map(d => d.time);
+        const values = equityData.map(d => d.value);
+
+        if (chartInstance) {
+            chartInstance.destroy();
+        }
+
+        chartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: '資金曲線 (Equity Curve)',
+                    data: values,
+                    borderColor: 'rgb(37, 99, 235)',
+                    backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                    tension: 0.1,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+            }
+        });
+    }
+
+    // 頁面載入時自動跑一次預設值
+    document.getElementById('backtestForm').dispatchEvent(new Event('submit'));
+</script>
+{% endblock %}

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智慧量化交易儀表板</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body class="bg-gray-100 min-h-screen">
+    <nav class="bg-blue-600 p-4 text-white shadow-lg">
+        <div class="container mx-auto">
+            <h1 class="text-2xl font-bold">QuantPro Dashboard</h1>
+        </div>
+    </nav>
+    <div class="container mx-auto py-8 px-4">
+        {% block content %}{% endblock %}
+    </div>
+</body>
+
+</html>
