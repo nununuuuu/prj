@@ -4,20 +4,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>智慧量化交易儀表板</title>
+    <title>量化交易儀表板</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+    </style>
 </head>
 
-<body class="bg-gray-100 min-h-screen">
-    <nav class="bg-blue-600 p-4 text-white shadow-lg">
-        <div class="container mx-auto">
-            <h1 class="text-2xl font-bold">QuantPro Dashboard</h1>
+<body class="bg-gray-50 min-h-screen flex flex-col">
+
+    <!-- 頂部導航欄  -->
+    <nav class="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-50">
+        <div class="container mx-auto px-4 h-16 flex items-center">
+            <!-- 標題文字 -->
+            <div>
+                <h1 class="text-xl font-bold text-gray-800 leading-tight">BacktestSystem</h1>
+            </div>
         </div>
     </nav>
-    <div class="container mx-auto py-8 px-4">
+
+    <!-- 主要內容區 -->
+    <main class="container mx-auto py-8 px-4 flex-grow">
         {% block content %}{% endblock %}
-    </div>
+    </main>
+
+    <!-- 頁尾 -->
+    <footer class="bg-white border-t border-gray-200 mt-auto">
+        <div class="container mx-auto px-4 py-6 text-center text-sm text-gray-500">
+            &copy; SMARTINVEST Project.
+        </div>
+    </footer>
+
 </body>
 
 </html>

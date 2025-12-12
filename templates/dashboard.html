@@ -1,136 +1,466 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-    <!-- 左側：控制面板 -->
-    <div class="bg-white p-6 rounded-lg shadow-md md:col-span-1">
-        <h2 class="text-xl font-bold mb-4 border-b pb-2">策略參數設定</h2>
-        <form id="backtestForm" class="space-y-4">
-            <div>
-                <label class="block text-sm font-medium text-gray-700">股票代碼</label>
-                <input type="text" id="ticker" value="SPY" class="mt-1 block w-full border rounded-md p-2" disabled>
-                <p class="text-xs text-gray-500">目前僅支援 Demo 數據 (SPY)</p>
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700">短期均線 (Fast MA)</label>
-                <input type="number" id="ma_short" value="10" class="mt-1 block w-full border rounded-md p-2">
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700">長期均線 (Slow MA)</label>
-                <input type="number" id="ma_long" value="20" class="mt-1 block w-full border rounded-md p-2">
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700">RSI 週期</label>
-                <input type="number" id="rsi_period" value="14" class="mt-1 block w-full border rounded-md p-2">
-            </div>
-            <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition">
-                執行回測
-            </button>
-        </form>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-        <div class="mt-8 bg-gray-50 p-4 rounded">
-            <h3 class="font-bold mb-2">策略邏輯說明</h3>
-            <p class="text-sm text-gray-600">
-                本策略採用雙均線交叉系統結合 RSI 過濾。<br>
-                1. <strong>買入：</strong>當短均線向上突破長均線，且 RSI < 70。<br>
-                    2. <strong>賣出：</strong>當短均線向下跌破長均線。
-            </p>
+    <!-- 左側設定區 -->
+    <div class="lg:col-span-3 space-y-4">
+        <div id="backtestForm" class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+            <h3 class="font-bold text-gray-700 mb-5 border-b pb-2">參數設定</h3>
+
+            <div class="space-y-4">
+                <!-- 股票代碼 -->
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">股票代碼</label>
+                    <input type="text" id="ticker"
+                        class="w-full border border-gray-300 rounded-lg p-2 text-sm uppercase focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+                        placeholder="例如: 2330, 0050, AAPL">
+                    <p class="text-[10px] text-gray-400 mt-1" id="tickerHint">請輸入代碼...</p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">開始</label>
+                        <input type="date" id="start_date" class="w-full border border-gray-300 rounded-lg p-2 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">結束</label>
+                        <input type="date" id="end_date" class="w-full border border-gray-300 rounded-lg p-2 text-sm">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">初始本金</label>
+                    <input type="number" id="cash" value="100000"
+                        class="w-full border border-gray-300 rounded-lg p-2 text-sm">
+                </div>
+
+                <hr class="border-dashed border-gray-200">
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">短均線</label>
+                        <input type="number" id="ma_short" value="10"
+                            class="w-full border border-gray-300 rounded-lg p-2 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">長均線</label>
+                        <input type="number" id="ma_long" value="60"
+                            class="w-full border border-gray-300 rounded-lg p-2 text-sm">
+                    </div>
+                </div>
+
+                <!-- 停損停利 -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">停損 %</label>
+                        <input type="number" id="sl_pct" value="0"
+                            class="w-full border border-gray-300 rounded-lg p-2 text-sm text-red-500 font-bold placeholder-gray-300">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">停利 %</label>
+                        <input type="number" id="tp_pct" value="0"
+                            class="w-full border border-gray-300 rounded-lg p-2 text-sm text-green-500 font-bold placeholder-gray-300">
+                    </div>
+                </div>
+
+                <!-- 手續費設定 (依照您的截圖風格) -->
+                <div class="mt-2">
+                    <label class="block text-xs font-medium text-gray-500 mb-2">交易成本設定 (%)</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[10px] text-gray-400 mb-1">買入手續費 (%)</label>
+                            <input type="number" step="0.0001" id="buy_fee" value="0.1425"
+                                class="w-full border border-gray-300 rounded p-2 text-sm bg-gray-50 focus:bg-white transition">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-gray-400 mb-1">賣出手續費+稅 (%)</label>
+                            <input type="number" step="0.0001" id="sell_fee" value="0.4425"
+                                class="w-full border border-gray-300 rounded p-2 text-sm bg-gray-50 focus:bg-white transition">
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- 按鈕區塊 -->
+            <div class="flex gap-2 mt-6">
+                <button type="button" id="runBtn" onclick="executeBacktest()"
+                    class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg transition shadow-md text-sm flex justify-center items-center gap-2">
+                    開始回測
+                </button>
+
+                <button type="button" id="lockBtn"
+                    class="px-4 py-2.5 bg-gray-100 text-gray-600 rounded-lg border border-gray-200 hover:bg-gray-200 transition text-sm font-bold"
+                    title="保留當前曲線以進行比較">
+                    鎖定
+                </button>
+            </div>
         </div>
     </div>
 
-    <!-- 右側：結果展示 -->
-    <div class="bg-white p-6 rounded-lg shadow-md md:col-span-2">
-        <h2 class="text-xl font-bold mb-4 border-b pb-2">回測績效報告</h2>
+    <!-- 右側數據區 -->
+    <div class="lg:col-span-9 space-y-6">
 
-        <!-- 績效卡片 -->
-        <div class="grid grid-cols-3 gap-4 mb-6">
-            <div class="bg-blue-50 p-4 rounded text-center">
-                <p class="text-sm text-gray-500">總報酬率</p>
-                <p class="text-2xl font-bold text-blue-600" id="res_return">--%</p>
+        <!-- 1. 績效卡片區 -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-blue-100 text-center">
+                <p class="text-xs text-gray-500 mb-1">年化報酬率</p>
+                <p class="text-2xl font-bold text-gray-400" id="res_ann_return">--%</p>
             </div>
-            <div class="bg-red-50 p-4 rounded text-center">
-                <p class="text-sm text-gray-500">最大回撤 (MDD)</p>
-                <p class="text-2xl font-bold text-red-600" id="res_mdd">--%</p>
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-green-100 text-center">
+                <p class="text-xs text-gray-500 mb-1">總報酬率</p>
+                <p class="text-2xl font-bold text-gray-400" id="res_total_return">--%</p>
+                <p class="text-xs text-gray-400 mt-1">Buy & Hold: <span id="res_bh_return">--%</span></p>
             </div>
-            <div class="bg-green-50 p-4 rounded text-center">
-                <p class="text-sm text-gray-500">勝率</p>
-                <p class="text-2xl font-bold text-green-600" id="res_win">--%</p>
+            <div class="bg-yellow-50 p-4 rounded-xl shadow-sm border border-yellow-200 text-center">
+                <p class="text-xs text-yellow-700 mb-1">最終資產</p>
+                <p class="text-2xl font-bold text-gray-800" id="res_final_equity">$ --</p>
+            </div>
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center">
+                <p class="text-xs text-gray-500 mb-1">勝率 (交易次數)</p>
+                <p class="text-xl font-bold text-gray-700">
+                    <span id="res_win_rate">--%</span>
+                    <span class="text-sm text-gray-400 font-normal"> (<span id="res_trades">--</span>次)</span>
+                </p>
+                <p class="text-xs text-gray-400 mt-1">最大連虧: <span id="res_consec_loss">--</span> 次</p>
             </div>
         </div>
 
-        <!-- 圖表區 -->
-        <div class="relative h-96 w-full">
-            <canvas id="equityChart"></canvas>
+        <!-- 2. 圖表切換區 -->
+        <div class="bg-white p-4 rounded-xl shadow-sm h-[450px]">
+            <h3 class="font-bold text-gray-700 mb-2">績效比較與走勢圖</h3>
+            <div class="relative w-full h-[380px] flex items-center justify-center bg-gray-50 rounded border border-dashed border-gray-200"
+                id="chartContainer">
+                <p class="text-gray-400 text-sm" id="chartPlaceholder">請輸入股票代碼並執行回測以顯示圖表</p>
+                <canvas id="mainChart" class="hidden"></canvas>
+            </div>
+        </div>
+
+        <!-- 3. 月度報酬熱力圖 -->
+        <div class="bg-white p-6 rounded-xl shadow-sm">
+            <h3 class="font-bold text-gray-700 mb-4">月度報酬熱力圖</h3>
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-sm text-center border-collapse">
+                    <thead>
+                        <tr class="bg-gray-50 text-gray-600">
+                            <th class="p-2 border">Year</th>
+                            <th class="p-2 border">Jan</th>
+                            <th class="p-2 border">Feb</th>
+                            <th class="p-2 border">Mar</th>
+                            <th class="p-2 border">Apr</th>
+                            <th class="p-2 border">May</th>
+                            <th class="p-2 border">Jun</th>
+                            <th class="p-2 border">Jul</th>
+                            <th class="p-2 border">Aug</th>
+                            <th class="p-2 border">Sep</th>
+                            <th class="p-2 border">Oct</th>
+                            <th class="p-2 border">Nov</th>
+                            <th class="p-2 border">Dec</th>
+                            <th class="p-2 border font-bold">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody id="heatmapBody">
+                        <tr>
+                            <td colspan="14" class="p-4 text-gray-400">等待數據中...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
-    let chartInstance = null;
+    console.log("LazyBacktest Script Loaded!");
 
-    document.getElementById('backtestForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
+    try {
+        const today = new Date();
+        const start = new Date();
+        start.setFullYear(today.getFullYear() - 3);
+        document.getElementById('end_date').value = today.toISOString().split('T')[0];
+        document.getElementById('start_date').value = start.toISOString().split('T')[0];
+    } catch (e) {
+        console.error("Date init failed:", e);
+    }
 
-        // 收集數據
-        const data = {
-            ticker: document.getElementById('ticker').value,
-            ma_short: parseInt(document.getElementById('ma_short').value),
-            ma_long: parseInt(document.getElementById('ma_long').value),
-            rsi_period: parseInt(document.getElementById('rsi_period').value)
-        };
+    // --- 關鍵修改：智慧手續費判斷邏輯 ---
+    document.getElementById('ticker').addEventListener('input', function (e) {
+        const val = e.target.value.trim().toUpperCase();
+        const hint = document.getElementById('tickerHint');
+        const buyInput = document.getElementById('buy_fee');
+        const sellInput = document.getElementById('sell_fee');
 
-        // 呼叫 API
-        const response = await fetch('/api/backtest', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        });
+        // 判斷邏輯
+        if (/^\d/.test(val) || val.endsWith('.TW')) {
+            // 是台股 (數字開頭 或 .TW 結尾)
 
-        const result = await response.json();
-
-        // 更新數據卡片
-        document.getElementById('res_return').innerText = result.return_pct + '%';
-        document.getElementById('res_mdd').innerText = result.max_drawdown + '%';
-        document.getElementById('res_win').innerText = result.win_rate + '%';
-
-        // 繪製圖表
-        renderChart(result.equity_curve);
+            if (val.startsWith('00')) {
+                // 情境 1: 台股 ETF (00開頭)
+                buyInput.value = 0.1425;
+                sellInput.value = 0.2425; // 0.1425 + 0.1 (稅)
+                hint.innerText = "偵測到: 台股 ETF";
+            } else {
+                // 情境 2: 台股 個股
+                buyInput.value = 0.1425;
+                sellInput.value = 0.4425; // 0.1425 + 0.3 (稅)
+                hint.innerText = "偵測到: 台股 個股";
+            }
+        } else if (val.length > 0) {
+            // 情境 3: 美股 (英文代碼)
+            buyInput.value = 0.1;
+            sellInput.value = 0.1;
+            hint.innerText = "偵測到: 美股";
+        } else {
+            hint.innerText = "請輸入代碼...";
+        }
     });
 
-    function renderChart(equityData) {
-        const ctx = document.getElementById('equityChart').getContext('2d');
-        const labels = equityData.map(d => d.time);
-        const values = equityData.map(d => d.value);
+    let mainChart = null;
+    let lockedDataset = null;
 
-        if (chartInstance) {
-            chartInstance.destroy();
+    const lockBtn = document.getElementById('lockBtn');
+    lockBtn.addEventListener('click', () => {
+        if (!mainChart) {
+            alert("請先執行回測再鎖定！");
+            return;
+        }
+        const currentDs = mainChart.data.datasets.find(d => d.label === '當前策略');
+        if (!currentDs) return;
+
+        lockedDataset = {
+            label: '策略 A (已鎖定)',
+            data: [...currentDs.data],
+            borderColor: '#FF5809',
+            backgroundColor: 'rgba(255, 88, 9, 0.1)',
+            borderWidth: 2,
+            pointRadius: 0,
+            tension: 0.1,
+            yAxisID: 'y'
+        };
+
+        lockBtn.classList.remove('bg-gray-100', 'text-gray-600', 'border-gray-200');
+        lockBtn.classList.add('bg-orange-100', 'text-orange-700', 'border-orange-300');
+        lockBtn.innerText = "已鎖定 (再按清除)";
+
+        lockBtn.onclick = () => {
+            location.reload();
+        };
+    });
+
+    async function executeBacktest() {
+        console.log("Backtest started...");
+        const ticker = document.getElementById('ticker').value.trim();
+
+        if (!ticker) {
+            alert("請輸入股票代碼！");
+            return;
         }
 
-        chartInstance = new Chart(ctx, {
+        const btn = document.getElementById('runBtn');
+        btn.disabled = true;
+        btn.innerText = "運算中...";
+
+        const payload = {
+            ticker: ticker,
+            start_date: document.getElementById('start_date').value,
+            end_date: document.getElementById('end_date').value,
+            cash: parseFloat(document.getElementById('cash').value),
+            ma_short: parseInt(document.getElementById('ma_short').value),
+            ma_long: parseInt(document.getElementById('ma_long').value),
+            sl_pct: parseFloat(document.getElementById('sl_pct').value),
+            tp_pct: parseFloat(document.getElementById('tp_pct').value),
+            buy_fee_pct: parseFloat(document.getElementById('buy_fee').value),
+            sell_fee_pct: parseFloat(document.getElementById('sell_fee').value)
+        };
+
+        try {
+            const res = await fetch('/api/backtest', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.detail || "請求失敗");
+            }
+
+            const data = await res.json();
+
+            updateCard('res_ann_return', data.annual_return, true);
+            updateCard('res_total_return', data.total_return, true);
+            document.getElementById('res_bh_return').innerText = data.buy_and_hold_return + '%';
+            document.getElementById('res_final_equity').innerText = '$' + data.final_equity.toLocaleString();
+            document.getElementById('res_win_rate').innerText = data.win_rate + '%';
+            document.getElementById('res_trades').innerText = data.total_trades;
+            document.getElementById('res_consec_loss').innerText = data.max_consecutive_loss;
+
+            document.getElementById('chartPlaceholder').classList.add('hidden');
+            const canvas = document.getElementById('mainChart');
+            canvas.classList.remove('hidden');
+            document.getElementById('chartContainer').classList.remove('bg-gray-50', 'border', 'border-dashed');
+
+            renderMainChart(data.price_data, data.trades, data.equity_curve, data.buy_and_hold_curve);
+            renderHeatmap(data.heatmap_data);
+
+        } catch (err) {
+            alert('錯誤: ' + err.message);
+            console.error(err);
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "開始回測";
+        }
+    }
+
+    function updateCard(id, value, isPct) {
+        const el = document.getElementById(id);
+        const suffix = isPct ? '%' : '';
+        const prefix = (value > 0 && isPct) ? '+' : '';
+        el.innerText = prefix + value + suffix;
+
+        el.className = "text-2xl font-bold ";
+        if (value > 0) el.classList.add("text-teal-600");
+        else if (value < 0) el.classList.add("text-red-500");
+        else el.classList.add("text-gray-600");
+    }
+
+    function renderMainChart(priceData, trades, equityData, bhData) {
+        const ctx = document.getElementById('mainChart').getContext('2d');
+        if (mainChart) mainChart.destroy();
+
+        const labels = priceData.map(d => d.time);
+
+        const strategyDataset = {
+            label: '當前策略',
+            data: equityData.map(d => d.value),
+            borderColor: '#2563eb',
+            backgroundColor: 'rgba(37, 99, 235, 0.05)',
+            borderWidth: 2,
+            pointRadius: 0,
+            tension: 0.1,
+            fill: true,
+            yAxisID: 'y',
+            order: 2
+        };
+
+        const bhDataset = {
+            label: '買進持有 (Benchmark)',
+            data: bhData ? bhData.map(d => d.value) : [],
+            borderColor: '#9ca3af',
+            borderWidth: 2,
+            pointRadius: 0,
+            tension: 0.1,
+            fill: false,
+            yAxisID: 'y',
+            order: 3
+        };
+
+        const buyMarkers = equityData.map(d => {
+            const trade = trades.find(tr => tr.time === d.time && tr.type === 'buy');
+            return trade ? d.value : null;
+        });
+
+        const sellMarkers = equityData.map(d => {
+            const trade = trades.find(tr => tr.time === d.time && tr.type === 'sell');
+            return trade ? d.value : null;
+        });
+
+        const buyDataset = {
+            label: '買進訊號',
+            data: buyMarkers,
+            borderColor: '#ef4444',
+            backgroundColor: '#ef4444',
+            pointStyle: 'triangle',
+            pointRadius: 8,
+            pointHoverRadius: 10,
+            type: 'scatter',
+            yAxisID: 'y',
+            order: 1
+        };
+
+        const sellDataset = {
+            label: '賣出訊號',
+            data: sellMarkers,
+            borderColor: '#10b981',
+            backgroundColor: '#10b981',
+            pointStyle: 'circle',
+            pointRadius: 6,
+            pointHoverRadius: 8,
+            type: 'scatter',
+            yAxisID: 'y',
+            order: 1
+        };
+
+        let datasets = [strategyDataset, bhDataset, buyDataset, sellDataset];
+        if (lockedDataset) {
+            datasets.push(lockedDataset);
+        }
+
+        mainChart = new Chart(ctx, {
             type: 'line',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: '資金曲線 (Equity Curve)',
-                    data: values,
-                    borderColor: 'rgb(37, 99, 235)',
-                    backgroundColor: 'rgba(37, 99, 235, 0.1)',
-                    tension: 0.1,
-                    fill: true
-                }]
-            },
+            data: { labels: labels, datasets: datasets },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                interaction: {
-                    mode: 'index',
-                    intersect: false,
-                },
+                interaction: { mode: 'index', intersect: false },
+                scales: { y: { display: true, position: 'right' } },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function (context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed.y !== null) {
+                                    label += new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(context.parsed.y);
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                }
             }
         });
     }
 
-    // 頁面載入時自動跑一次預設值
-    document.getElementById('backtestForm').dispatchEvent(new Event('submit'));
+    function renderHeatmap(data) {
+        const tbody = document.getElementById('heatmapBody');
+        tbody.innerHTML = '';
+        const months = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+        const years = Object.keys(data).sort((a, b) => b - a);
+
+        if (years.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="14" class="p-4 text-gray-400">無交易數據</td></tr>';
+            return;
+        }
+
+        years.forEach(year => {
+            const row = document.createElement('tr');
+            row.innerHTML = `<td class="font-bold border bg-gray-50 text-gray-700">${year}</td>`;
+
+            let yearTotal = 0;
+            months.forEach(m => {
+                const val = data[year][m];
+                if (val !== undefined) {
+                    yearTotal += val;
+                    let colorClass = '';
+                    if (val >= 5) colorClass = 'bg-green-600 text-white';
+                    else if (val > 0) colorClass = 'bg-green-100 text-green-800';
+                    else if (val <= -5) colorClass = 'bg-red-500 text-white';
+                    else if (val < 0) colorClass = 'bg-red-50 text-red-800';
+                    else colorClass = 'text-gray-400';
+                    row.innerHTML += `<td class="border ${colorClass} p-2 text-xs">${val.toFixed(1)}%</td>`;
+                } else {
+                    row.innerHTML += `<td class="border bg-gray-50 p-2 text-xs text-gray-300">-</td>`;
+                }
+            });
+
+            const totalClass = yearTotal >= 0 ? 'text-green-600' : 'text-red-600';
+            row.innerHTML += `<td class="border font-bold ${totalClass} bg-gray-100">${yearTotal.toFixed(1)}%</td>`;
+            tbody.appendChild(row);
+        });
+    }
 </script>
 {% endblock %}
