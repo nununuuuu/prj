@@ -4,9 +4,7 @@
 
 <div class="flex flex-col lg:flex-row w-full h-full">
 
-    <!-- 左側設定區 -->
     <div class="w-full lg:w-80 bg-white border-r border-gray-200 flex-shrink-0 flex flex-col h-full z-10">
-
         <div class="p-4 border-b border-gray-100 flex items-center justify-between bg-white sticky top-0 z-10">
             <h2 class="font-bold text-gray-700 flex items-center gap-2">
                 <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -20,10 +18,8 @@
         </div>
 
         <div class="overflow-y-auto flex-1 p-4 custom-scrollbar space-y-6">
-
-            <!-- 1. 標的 -->
             <div class="space-y-3">
-                <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">標的與資金</p>
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">基本設定</p>
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">股票代碼</label>
                     <input type="text" id="ticker"
@@ -40,101 +36,73 @@
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-2">
-                    <div>
-                        <label class="block text-xs font-medium text-gray-600 mb-1">開始日期</label>
-                        <input type="date" id="start_date"
-                            class="w-full bg-gray-50 border border-gray-200 rounded-lg p-2 text-xs">
+                    <div><label class="block text-xs font-medium text-gray-600 mb-1">開始日期</label><input type="date"
+                            id="start_date" class="w-full bg-gray-50 border border-gray-200 rounded-lg p-2 text-xs">
                     </div>
-                    <div>
-                        <label class="block text-xs font-medium text-gray-600 mb-1">結束日期</label>
-                        <input type="date" id="end_date"
-                            class="w-full bg-gray-50 border border-gray-200 rounded-lg p-2 text-xs">
-                    </div>
+                    <div><label class="block text-xs font-medium text-gray-600 mb-1">結束日期</label><input type="date"
+                            id="end_date" class="w-full bg-gray-50 border border-gray-200 rounded-lg p-2 text-xs"></div>
                 </div>
             </div>
-
             <hr class="border-gray-100">
-
-            <!-- 2. 策略 (RSI 分離版) -->
             <div class="space-y-3">
-                <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">均線與指標</p>
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">策略設定</p>
                 <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-xs font-medium text-gray-600 mb-1">短均線 (Fast)</label>
-                        <input type="number" id="ma_short" value="10"
+                    <div><label class="block text-xs font-medium text-gray-600 mb-1">短期SMA</label><input type="number"
+                            id="ma_short" value="10"
                             class="w-full border border-gray-200 rounded-lg p-2 text-sm text-center focus:border-blue-500 outline-none">
                     </div>
-                    <div>
-                        <label class="block text-xs font-medium text-gray-600 mb-1">長均線 (Slow)</label>
-                        <input type="number" id="ma_long" value="60"
+                    <div><label class="block text-xs font-medium text-gray-600 mb-1">長期SMA</label><input type="number"
+                            id="ma_long" value="60"
                             class="w-full border border-gray-200 rounded-lg p-2 text-sm text-center focus:border-blue-500 outline-none">
                     </div>
                 </div>
-
-                <!-- RSI 設定區塊 -->
                 <div class="bg-blue-50 p-3 rounded-lg border border-blue-100">
-                    <label class="text-xs font-bold text-blue-800 mb-2 block">RSI 濾網 (分離設定)</label>
-
+                    <!-- [修正] 修復標籤閉合錯誤 -->
+                    <label class="text-xs font-bold text-blue-800 mb-2 block">RSI 濾網</label>
                     <div class="grid grid-cols-2 gap-x-3 gap-y-2">
-                        <!-- 進場設定 -->
-                        <div class="col-span-1">
-                            <span class="text-[10px] text-gray-500 block mb-1">進場週期</span>
-                            <input type="number" id="rsi_period_entry" value="14"
-                                class="w-full border border-blue-200 rounded p-1 text-xs text-center bg-white">
-                        </div>
-                        <div class="col-span-1">
-                            <span class="text-[10px] text-gray-500 block mb-1">進場上限 (&lt;)</span>
-                            <!-- [修正] 預設改為 30 -->
-                            <input type="number" id="rsi_buy_threshold" value="30"
+                        <div class="col-span-1"><span class="text-[10px] text-gray-500 block mb-1">進場週期</span><input
+                                type="number" id="rsi_period_entry" value="14"
+                                class="w-full border border-blue-200 rounded p-1 text-xs text-center bg-white"></div>
+
+                        <!-- [修正] 預設改為 70 -->
+                        <div class="col-span-1"><span class="text-[10px] text-gray-500 block mb-1">進場上限
+                                (&lt;)</span><input type="number" id="rsi_buy_threshold" value="70"
                                 class="w-full border border-blue-200 rounded p-1 text-sm text-center font-bold text-blue-600">
                         </div>
 
-                        <!-- 分隔線 -->
                         <div class="col-span-2 border-t border-blue-100 my-1"></div>
+                        <div class="col-span-1"><span class="text-[10px] text-gray-500 block mb-1">出場週期</span><input
+                                type="number" id="rsi_period_exit" value="14"
+                                class="w-full border border-red-200 rounded p-1 text-xs text-center bg-white"></div>
 
-                        <!-- 出場設定 -->
-                        <div class="col-span-1">
-                            <span class="text-[10px] text-gray-500 block mb-1">出場週期</span>
-                            <input type="number" id="rsi_period_exit" value="14"
-                                class="w-full border border-red-200 rounded p-1 text-xs text-center bg-white">
-                        </div>
-                        <div class="col-span-1">
-                            <span class="text-[10px] text-gray-500 block mb-1">出場觸發 (&gt;)</span>
-                            <!-- [修正] 預設改為 70 -->
-                            <input type="number" id="rsi_sell_threshold" value="70"
+                        <!-- [修正] 預設改為 80 -->
+                        <div class="col-span-1"><span class="text-[10px] text-gray-500 block mb-1">出場觸發
+                                (&gt;)</span><input type="number" id="rsi_sell_threshold" value="80"
                                 class="w-full border border-red-200 rounded p-1 text-sm text-center font-bold text-red-500">
                         </div>
                     </div>
                 </div>
             </div>
-
             <hr class="border-gray-100">
-
-            <!-- 3. 風控 -->
             <div class="space-y-3">
-                <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">出場與風控</p>
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">風險控制</p>
                 <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-xs font-medium text-gray-600 mb-1">停損 (%)</label>
-                        <input type="number" id="sl_pct" value="0" step="0.5"
+                    <div><label class="block text-xs font-medium text-gray-600 mb-1">停損 (%)</label><input type="number"
+                            id="sl_pct" value="0" step="0.5"
                             class="w-full border border-gray-200 rounded-lg p-2 text-sm text-red-600 font-bold bg-red-50 focus:bg-white transition">
                     </div>
-                    <div>
-                        <label class="block text-xs font-medium text-gray-600 mb-1">停利 (%)</label>
-                        <input type="number" id="tp_pct" value="0" step="0.5"
+                    <div><label class="block text-xs font-medium text-gray-600 mb-1">停利 (%)</label><input type="number"
+                            id="tp_pct" value="0" step="0.5"
                             class="w-full border border-gray-200 rounded-lg p-2 text-sm text-green-600 font-bold bg-green-50 focus:bg-white transition">
                     </div>
                 </div>
-
                 <details class="group">
                     <summary
                         class="flex justify-between items-center font-medium cursor-pointer list-none text-xs text-gray-500 hover:text-gray-700">
-                        <span>進階：交易手續費</span>
-                        <span class="transition group-open:rotate-180"><svg fill="none" height="16"
+                        <span>進階：交易手續費</span><span class="transition group-open:rotate-180"><svg fill="none" height="16"
                                 stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" width="16">
                                 <path d="M6 9l6 6 6-6"></path>
-                            </svg></span>
-                    </summary>
+                            </svg></span></summary>
                     <div class="text-neutral-600 mt-2 grid grid-cols-2 gap-2 animate-fadeIn">
                         <div><label class="text-[10px]">買入 (%)</label><input type="number" step="0.0001" id="buy_fee"
                                 value="0.1425" class="w-full border rounded p-1 text-xs"></div>
@@ -145,7 +113,6 @@
             </div>
             <div class="h-10"></div>
         </div>
-
         <div class="p-4 border-t border-gray-200 bg-gray-50 sticky bottom-0 z-10">
             <button type="button" id="runBtn" onclick="executeBacktest()"
                 class="w-full bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold py-3 rounded-xl transition shadow-lg shadow-blue-500/30 flex justify-center items-center gap-2">
@@ -155,17 +122,13 @@
                     </path>
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
-                開始回測
+                </svg>開始回測
             </button>
         </div>
     </div>
 
-    <!-- 右側內容 -->
     <div class="flex-1 bg-gray-100 h-full overflow-y-auto custom-scrollbar relative">
         <div class="max-w-7xl mx-auto p-4 lg:p-6 space-y-6">
-
-            <!-- KPI Cards -->
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between">
                     <p class="text-xs font-medium text-gray-400">年化報酬率 (CAGR)</p>
@@ -174,27 +137,27 @@
                 <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between">
                     <div class="flex justify-between items-start">
                         <p class="text-xs font-medium text-gray-400">總報酬率</p>
-                        <span class="text-sm font-medium bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">B&H: <span
-                                id="res_bh_return">--</span></span>
+                        <span class="text-sm font-medium bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">買進並持有:
+                            <span id="res_bh_return">--</span></span>
                     </div>
                     <p class="text-3xl font-bold text-gray-300 mt-1" id="res_total_return">--%</p>
                 </div>
+
                 <div
-                    class="bg-gradient-to-br from-gray-800 to-gray-900 text-white p-5 rounded-2xl shadow-lg shadow-gray-400/20 flex flex-col justify-between">
-                    <p class="text-xs font-medium text-gray-400">最終資產 (Equity)</p>
-                    <p class="text-3xl font-bold mt-1" id="res_final_equity">$ --</p>
+                    class="bg-gradient-to-br from-slate-600 to-slate-700 text-white p-5 rounded-2xl shadow-lg shadow-gray-400/20 flex flex-col justify-between">
+                    <p class="text-xs font-medium text-blue-100">最終資產 (Equity)</p>
+                    <p class="text-3xl font-bold mt-1 text-white" id="res_final_equity">$ --</p>
                 </div>
+
                 <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between">
                     <p class="text-xs font-medium text-gray-400">勝率 / 交易次數</p>
                     <div class="flex items-baseline gap-2 mt-1">
-                        <!-- [修正] 初始顏色為 text-gray-300 (灰色) -->
                         <p class="text-3xl font-bold text-gray-300" id="res_win_rate">--%</p>
                         <span class="text-sm text-gray-400">(<span id="res_trades">--</span>筆)</span>
                     </div>
                 </div>
             </div>
 
-            <!-- Chart -->
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
                 <div class="flex justify-between items-center mb-6">
                     <div>
@@ -217,17 +180,14 @@
                 </div>
             </div>
 
-            <!-- Analytics -->
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100">
                 <div class="p-6 border-b border-gray-100">
-                    <h3 class="font-bold text-gray-800 flex items-center gap-2">
-                        <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <h3 class="font-bold text-gray-800 flex items-center gap-2"><svg class="w-5 h-5 text-gray-500"
+                            fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z">
                             </path>
-                        </svg>
-                        交易詳細分析
-                    </h3>
+                        </svg>交易詳細分析</h3>
                 </div>
                 <div class="p-6">
                     <div class="flex flex-col xl:flex-row gap-8">
@@ -268,9 +228,8 @@
                             </div>
                             <div
                                 class="bg-white rounded-xl p-4 border border-gray-200 flex justify-between items-center">
-                                <span class="text-xs text-gray-500">最大連虧次數</span>
-                                <span class="font-bold text-gray-700 text-lg" id="res_consec_loss">--</span>
-                            </div>
+                                <span class="text-xs text-gray-500">最大連虧次數</span><span
+                                    class="font-bold text-gray-700 text-lg" id="res_consec_loss">--</span></div>
                         </div>
                     </div>
                     <div class="border-t border-dashed border-gray-200 my-8"></div>
@@ -285,10 +244,8 @@
                     </div>
                 </div>
             </div>
-
             <footer class="text-center text-xs text-gray-400 py-6">&copy; SmartInvest Project.</footer>
         </div>
-
         <script src="/static/js/main.js"></script>
         <script>
             function resetParams() {
@@ -296,9 +253,9 @@
                     document.getElementById('ma_short').value = 10;
                     document.getElementById('ma_long').value = 60;
                     document.getElementById('rsi_period_entry').value = 14;
-                    document.getElementById('rsi_buy_threshold').value = 30; // 修正重置值
+                    document.getElementById('rsi_buy_threshold').value = 70; // [修正] 重置值
                     document.getElementById('rsi_period_exit').value = 14;
-                    document.getElementById('rsi_sell_threshold').value = 70; // 修正重置值
+                    document.getElementById('rsi_sell_threshold').value = 80; // [修正] 重置值
                     document.getElementById('sl_pct').value = 0;
                     document.getElementById('tp_pct').value = 0;
                     document.getElementById('cash').value = 100000;

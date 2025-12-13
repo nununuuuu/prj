@@ -11,10 +11,10 @@ class BacktestRequest(BaseModel):
     
     # --- RSI 進階設定 (修正預設值) ---
     rsi_period_entry: int = 14    
-    rsi_buy_threshold: int = 30   # [修正] 預設改為 30
+    rsi_buy_threshold: int = 70   
     
     rsi_period_exit: int = 14     
-    rsi_sell_threshold: int = 70  # [修正] 預設改為 70
+    rsi_sell_threshold: int = 80  
 
     buy_fee_pct: float = 0.1425
     sell_fee_pct: float = 0.4425
