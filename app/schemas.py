@@ -1,5 +1,5 @@
-from pydantic import BaseModel, Field
-from typing import List, Dict, Optional, Any
+from pydantic import BaseModel
+from typing import List, Dict, Optional
 
 class BacktestRequest(BaseModel):
     ticker: str
@@ -7,9 +7,15 @@ class BacktestRequest(BaseModel):
     end_date: str
     cash: float = 100000
     ma_short: int = 10
-    ma_long: int = 20
-    rsi_period: int = 14  # 新增：RSI 計算週期
-    rsi_overbought: int = 70 # 新增：RSI 過熱閾值 (用於進場過濾)
+    ma_long: int = 60
+    
+    # --- RSI 進階設定 (修正預設值) ---
+    rsi_period_entry: int = 14    
+    rsi_buy_threshold: int = 30   # [修正] 預設改為 30
+    
+    rsi_period_exit: int = 14     
+    rsi_sell_threshold: int = 70  # [修正] 預設改為 70
+
     buy_fee_pct: float = 0.1425
     sell_fee_pct: float = 0.4425
     stop_loss_pct: float = 0.0
@@ -17,20 +23,18 @@ class BacktestRequest(BaseModel):
 
 class BacktestResponse(BaseModel):
     ticker: str
-    # --- 核心指標 (對應您的截圖) ---
-    final_equity: float       # 最終資產
-    total_return: float       # 總報酬率
-    annual_return: float      # 年化報酬率
-    buy_and_hold_return: float # 買入持有報酬率
-    win_rate: float           # 勝率
-    total_trades: int         # 總交易次數
-    avg_pnl: float            # 平均交易盈虧 (金額)
-    max_consecutive_loss: int # 最大連虧次數
+    final_equity: float
+    total_return: float
+    annual_return: float
+    buy_and_hold_return: float
+    win_rate: float
+    total_trades: int
+    avg_pnl: float
+    max_consecutive_loss: int
     
-    # --- 圖表數據 ---
-    equity_curve: List[Dict]  # 資金曲線
-    price_data: List[Dict]    # 股價走勢 (畫背景用)
-    trades: List[Dict]        # 交易點位 (畫買賣點用)
+    equity_curve: List[Dict]
+    price_data: List[Dict]
+    trades: List[Dict]
     detailed_trades: Optional[List[Dict]] = [] 
-    heatmap_data: Dict[int, Dict[int, float]] # 熱力圖數據 {Year: {Month: Return}}
+    heatmap_data: Dict[int, Dict[int, float]]
     buy_and_hold_curve: List[Dict]

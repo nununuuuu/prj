@@ -2,15 +2,11 @@
 
 {% block content %}
 
-<!-- 佈局容器：在 Desktop (lg) 模式下左右並排，手機模式下垂直排列 -->
 <div class="flex flex-col lg:flex-row w-full h-full">
 
-    <!-- ========================== -->
-    <!-- 左側設定區 (Sidebar Module) -->
-    <!-- ========================== -->
+    <!-- 左側設定區 -->
     <div class="w-full lg:w-80 bg-white border-r border-gray-200 flex-shrink-0 flex flex-col h-full z-10">
 
-        <!-- 標題區 -->
         <div class="p-4 border-b border-gray-100 flex items-center justify-between bg-white sticky top-0 z-10">
             <h2 class="font-bold text-gray-700 flex items-center gap-2">
                 <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -23,10 +19,9 @@
             <button onclick="resetParams()" class="text-xs text-blue-500 hover:text-blue-700">重置</button>
         </div>
 
-        <!-- 滾動內容區 custom-scrollbar -->
         <div class="overflow-y-auto flex-1 p-4 custom-scrollbar space-y-6">
 
-            <!-- 1. 標的設定 -->
+            <!-- 1. 標的 -->
             <div class="space-y-3">
                 <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">標的與資金</p>
                 <div>
@@ -36,7 +31,6 @@
                         placeholder="2330, 006208, NVDA">
                     <p class="text-[10px] text-gray-400 mt-1 h-3" id="tickerHint"></p>
                 </div>
-
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">初始本金</label>
                     <div class="relative">
@@ -45,7 +39,6 @@
                             class="w-full bg-gray-50 border border-gray-200 rounded-lg pl-6 p-2.5 text-sm">
                     </div>
                 </div>
-
                 <div class="grid grid-cols-2 gap-2">
                     <div>
                         <label class="block text-xs font-medium text-gray-600 mb-1">開始日期</label>
@@ -62,39 +55,54 @@
 
             <hr class="border-gray-100">
 
-            <!-- 2. 策略設定 -->
+            <!-- 2. 策略 (RSI 分離版) -->
             <div class="space-y-3">
                 <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">均線與指標</p>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-xs font-medium text-gray-600 mb-1">短均線 (MA Fast)</label>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">短均線 (Fast)</label>
                         <input type="number" id="ma_short" value="10"
                             class="w-full border border-gray-200 rounded-lg p-2 text-sm text-center focus:border-blue-500 outline-none">
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-gray-600 mb-1">長均線 (MA Slow)</label>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">長均線 (Slow)</label>
                         <input type="number" id="ma_long" value="60"
                             class="w-full border border-gray-200 rounded-lg p-2 text-sm text-center focus:border-blue-500 outline-none">
                     </div>
                 </div>
 
-                <!-- RSI 設定 -->
+                <!-- RSI 設定區塊 -->
                 <div class="bg-blue-50 p-3 rounded-lg border border-blue-100">
-                    <div class="flex justify-between items-center mb-2">
-                        <label class="text-xs font-bold text-blue-800">RSI 濾網</label>
-                        <span
-                            class="text-[10px] text-blue-600 bg-white px-1.5 rounded border border-blue-200">進場限制</span>
-                    </div>
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <span class="text-[10px] text-gray-500">週期</span>
-                            <input type="number" id="rsi_period" value="14"
-                                class="w-full border border-gray-200 rounded p-1.5 text-sm text-center">
+                    <label class="text-xs font-bold text-blue-800 mb-2 block">RSI 濾網 (分離設定)</label>
+
+                    <div class="grid grid-cols-2 gap-x-3 gap-y-2">
+                        <!-- 進場設定 -->
+                        <div class="col-span-1">
+                            <span class="text-[10px] text-gray-500 block mb-1">進場週期</span>
+                            <input type="number" id="rsi_period_entry" value="14"
+                                class="w-full border border-blue-200 rounded p-1 text-xs text-center bg-white">
                         </div>
-                        <div>
-                            <span class="text-[10px] text-gray-500">上限</span>
-                            <input type="number" id="rsi_overbought" value="70"
-                                class="w-full border border-gray-200 rounded p-1.5 text-sm text-center font-bold text-blue-600">
+                        <div class="col-span-1">
+                            <span class="text-[10px] text-gray-500 block mb-1">進場上限 (&lt;)</span>
+                            <!-- [修正] 預設改為 30 -->
+                            <input type="number" id="rsi_buy_threshold" value="30"
+                                class="w-full border border-blue-200 rounded p-1 text-sm text-center font-bold text-blue-600">
+                        </div>
+
+                        <!-- 分隔線 -->
+                        <div class="col-span-2 border-t border-blue-100 my-1"></div>
+
+                        <!-- 出場設定 -->
+                        <div class="col-span-1">
+                            <span class="text-[10px] text-gray-500 block mb-1">出場週期</span>
+                            <input type="number" id="rsi_period_exit" value="14"
+                                class="w-full border border-red-200 rounded p-1 text-xs text-center bg-white">
+                        </div>
+                        <div class="col-span-1">
+                            <span class="text-[10px] text-gray-500 block mb-1">出場觸發 (&gt;)</span>
+                            <!-- [修正] 預設改為 70 -->
+                            <input type="number" id="rsi_sell_threshold" value="70"
+                                class="w-full border border-red-200 rounded p-1 text-sm text-center font-bold text-red-500">
                         </div>
                     </div>
                 </div>
@@ -102,7 +110,7 @@
 
             <hr class="border-gray-100">
 
-            <!-- 3. 風控設定 -->
+            <!-- 3. 風控 -->
             <div class="space-y-3">
                 <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">出場與風控</p>
                 <div class="grid grid-cols-2 gap-3">
@@ -118,39 +126,26 @@
                     </div>
                 </div>
 
-                <!-- 手續費摺疊選單 (為了省空間) -->
                 <details class="group">
                     <summary
                         class="flex justify-between items-center font-medium cursor-pointer list-none text-xs text-gray-500 hover:text-gray-700">
                         <span>進階：交易手續費</span>
-                        <span class="transition group-open:rotate-180">
-                            <svg fill="none" height="16" shape-rendering="geometricPrecision" stroke="currentColor"
-                                stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"
-                                width="16">
+                        <span class="transition group-open:rotate-180"><svg fill="none" height="16"
+                                stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" width="16">
                                 <path d="M6 9l6 6 6-6"></path>
-                            </svg>
-                        </span>
+                            </svg></span>
                     </summary>
                     <div class="text-neutral-600 mt-2 grid grid-cols-2 gap-2 animate-fadeIn">
-                        <div>
-                            <label class="text-[10px]">買入 (%)</label>
-                            <input type="number" step="0.0001" id="buy_fee" value="0.1425"
-                                class="w-full border rounded p-1 text-xs">
-                        </div>
-                        <div>
-                            <label class="text-[10px]">賣出 (%)</label>
-                            <input type="number" step="0.0001" id="sell_fee" value="0.4425"
-                                class="w-full border rounded p-1 text-xs">
-                        </div>
+                        <div><label class="text-[10px]">買入 (%)</label><input type="number" step="0.0001" id="buy_fee"
+                                value="0.1425" class="w-full border rounded p-1 text-xs"></div>
+                        <div><label class="text-[10px]">賣出 (%)</label><input type="number" step="0.0001" id="sell_fee"
+                                value="0.4425" class="w-full border rounded p-1 text-xs"></div>
                     </div>
                 </details>
             </div>
-
-            <!-- 底部留白，避免最後一個元素貼底 -->
             <div class="h-10"></div>
         </div>
 
-        <!-- 底部固定按鈕區 -->
         <div class="p-4 border-t border-gray-200 bg-gray-50 sticky bottom-0 z-10">
             <button type="button" id="runBtn" onclick="executeBacktest()"
                 class="w-full bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold py-3 rounded-xl transition shadow-lg shadow-blue-500/30 flex justify-center items-center gap-2">
@@ -166,14 +161,11 @@
         </div>
     </div>
 
-    <!-- ========================== -->
-    <!-- 右側主要內容區 (Main Content) -->
-    <!-- ========================== -->
+    <!-- 右側內容 -->
     <div class="flex-1 bg-gray-100 h-full overflow-y-auto custom-scrollbar relative">
+        <div class="max-w-7xl mx-auto p-4 lg:p-6 space-y-6">
 
-        <div class="max-w-6xl mx-auto p-4 lg:p-8 space-y-6">
-
-            <!-- 頂部績效卡片區 -->
+            <!-- KPI Cards -->
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between">
                     <p class="text-xs font-medium text-gray-400">年化報酬率 (CAGR)</p>
@@ -182,7 +174,7 @@
                 <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between">
                     <div class="flex justify-between items-start">
                         <p class="text-xs font-medium text-gray-400">總報酬率</p>
-                        <span class="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">Buy&Hold: <span
+                        <span class="text-sm font-medium bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">B&H: <span
                                 id="res_bh_return">--</span></span>
                     </div>
                     <p class="text-3xl font-bold text-gray-300 mt-1" id="res_total_return">--%</p>
@@ -195,31 +187,26 @@
                 <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between">
                     <p class="text-xs font-medium text-gray-400">勝率 / 交易次數</p>
                     <div class="flex items-baseline gap-2 mt-1">
+                        <!-- [修正] 初始顏色為 text-gray-300 (灰色) -->
                         <p class="text-3xl font-bold text-gray-300" id="res_win_rate">--%</p>
                         <span class="text-sm text-gray-400">(<span id="res_trades">--</span>筆)</span>
                     </div>
                 </div>
             </div>
 
-            <!-- 主圖表區 -->
+            <!-- Chart -->
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
                 <div class="flex justify-between items-center mb-6">
                     <div>
                         <h3 class="font-bold text-gray-800 text-lg">資產走勢圖</h3>
-                        <p class="text-xs text-gray-500">比較策略與持有策略的資產變化</p>
                     </div>
                     <div class="flex gap-2">
                         <button type="button" onclick="resetZoom()"
-                            class="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded hover:bg-gray-200 transition">
-                            重置縮放
-                        </button>
+                            class="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded hover:bg-gray-200 transition">重置縮放</button>
                         <button type="button" id="lockBtn"
-                            class="px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-100 rounded hover:bg-blue-100 transition">
-                            鎖定曲線
-                        </button>
+                            class="px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-100 rounded hover:bg-blue-100 transition">鎖定曲線</button>
                     </div>
                 </div>
-
                 <div class="relative w-full h-[400px] flex items-center justify-center bg-gray-50 rounded-xl border border-dashed border-gray-200"
                     id="chartContainer">
                     <div class="text-center" id="chartPlaceholder">
@@ -230,106 +217,88 @@
                 </div>
             </div>
 
-            <!-- 下方詳細數據區：熱力圖 + 其他統計 -->
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <!-- 熱力圖 -->
-                <div class="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                    <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
-                            </path>
-                        </svg>
-                        月度報酬熱力圖
-                    </h3>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-sm text-center border-collapse">
-                            <thead>
-                                <tr class="text-xs text-gray-400 border-b border-gray-100">
-                                    <th class="p-2 font-medium">Year</th>
-                                    <th class="p-2 font-normal">Jan</th>
-                                    <th class="p-2 font-normal">Feb</th>
-                                    <th class="p-2 font-normal">Mar</th>
-                                    <th class="p-2 font-normal">Apr</th>
-                                    <th class="p-2 font-normal">May</th>
-                                    <th class="p-2 font-normal">Jun</th>
-                                    <th class="p-2 font-normal">Jul</th>
-                                    <th class="p-2 font-normal">Aug</th>
-                                    <th class="p-2 font-normal">Sep</th>
-                                    <th class="p-2 font-normal">Oct</th>
-                                    <th class="p-2 font-normal">Nov</th>
-                                    <th class="p-2 font-normal">Dec</th>
-                                    <th class="p-2 font-bold text-gray-600">Total</th>
-                                </tr>
-                            </thead>
-                            <tbody id="heatmapBody" class="text-xs">
-                                <tr>
-                                    <td colspan="14" class="p-8 text-gray-400 text-center">等待數據中...</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div class="col-span-1 lg:col-span-3 bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mt-6">
-                    <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2 border-b pb-4">
+            <!-- Analytics -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100">
+                <div class="p-6 border-b border-gray-100">
+                    <h3 class="font-bold text-gray-800 flex items-center gap-2">
                         <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01">
+                                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z">
                             </path>
                         </svg>
-                        交易紀錄
+                        交易詳細分析
                     </h3>
-
-                    <div class="overflow-hidden">
-                        <!-- 交易列表容器 -->
-                        <div id="tradeListContainer" class="space-y-0 divide-y divide-gray-100">
-                            <p class="text-sm text-gray-400 py-8 text-center">請執行回測以查看詳細紀錄</p>
-                        </div>
-                    </div>
                 </div>
-
-                <!-- 額外資訊：例如最大回撤 (這裡可以未來擴充) -->
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                    <h3 class="font-bold text-gray-800 mb-4">風險指標</h3>
-                    <div class="space-y-4">
-                        <!-- 1. 平均交易盈虧卡片 (對應您的截圖) -->
-                        <div
-                            class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center justify-center text-center h-[180px]">
-                            <p class="text-sm font-medium text-gray-500 mb-2">平均交易盈虧</p>
-
-                            <!-- 數值顯示區 -->
-                            <p class="text-4xl font-bold tracking-tight" id="res_avg_pnl">--</p>
-                            <span class="text-sm text-gray-400 mt-2">元</span>
+                <div class="p-6">
+                    <div class="flex flex-col xl:flex-row gap-8">
+                        <div class="flex-1 overflow-x-auto">
+                            <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">月度報酬熱力圖</h4>
+                            <table class="w-full text-sm text-center border-collapse">
+                                <thead>
+                                    <tr class="text-xs text-gray-400 border-b border-gray-100">
+                                        <th class="p-2 font-medium">Year</th>
+                                        <th class="p-2">Jan</th>
+                                        <th class="p-2">Feb</th>
+                                        <th class="p-2">Mar</th>
+                                        <th class="p-2">Apr</th>
+                                        <th class="p-2">May</th>
+                                        <th class="p-2">Jun</th>
+                                        <th class="p-2">Jul</th>
+                                        <th class="p-2">Aug</th>
+                                        <th class="p-2">Sep</th>
+                                        <th class="p-2">Oct</th>
+                                        <th class="p-2">Nov</th>
+                                        <th class="p-2">Dec</th>
+                                        <th class="p-2 font-bold text-gray-600">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="heatmapBody" class="text-xs">
+                                    <tr>
+                                        <td colspan="14" class="p-8 text-gray-400 text-center">等待數據中...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
-
-                        <!-- 2. 其他風險數據 (保留最大連虧，這很重要) -->
-                        <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
-                            <div class="flex justify-between items-center">
-                                <span class="text-xs text-gray-500 font-medium">最大連虧次數</span>
-                                <span class="text-lg font-bold text-gray-700" id="res_consec_loss">--</span>
+                        <div class="w-full xl:w-72 flex-shrink-0 space-y-4">
+                            <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">風險數據</h4>
+                            <div class="bg-gray-50 rounded-xl p-6 text-center border border-gray-100">
+                                <p class="text-xs text-gray-500 mb-2">平均交易盈虧</p>
+                                <p class="text-3xl font-bold tracking-tight text-gray-300" id="res_avg_pnl">--</p>
+                                <span class="text-xs text-gray-400 mt-1 block">TWD / USD</span>
+                            </div>
+                            <div
+                                class="bg-white rounded-xl p-4 border border-gray-200 flex justify-between items-center">
+                                <span class="text-xs text-gray-500">最大連虧次數</span>
+                                <span class="font-bold text-gray-700 text-lg" id="res_consec_loss">--</span>
                             </div>
                         </div>
                     </div>
-
-                    <!-- 頁尾 -->
-                    <footer class="text-center text-xs text-gray-400 py-6">
-                        &copy; SmartInvest Project.
-                    </footer>
-
+                    <div class="border-t border-dashed border-gray-200 my-8"></div>
+                    <div>
+                        <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">歷史交易紀錄</h4>
+                        <div class="overflow-hidden">
+                            <div id="tradeListContainer"
+                                class="space-y-0 divide-y divide-gray-100 max-h-[500px] overflow-y-auto custom-scrollbar pr-2">
+                                <p class="text-sm text-gray-400 py-8 text-center">請執行回測以查看詳細紀錄</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
+
+            <footer class="text-center text-xs text-gray-400 py-6">&copy; SmartInvest Project.</footer>
         </div>
 
         <script src="/static/js/main.js"></script>
         <script>
-            // 簡單的重置功能
             function resetParams() {
                 if (confirm("確定要重置所有參數為預設值嗎？")) {
                     document.getElementById('ma_short').value = 10;
                     document.getElementById('ma_long').value = 60;
-                    document.getElementById('rsi_period').value = 14;
-                    document.getElementById('rsi_overbought').value = 70;
+                    document.getElementById('rsi_period_entry').value = 14;
+                    document.getElementById('rsi_buy_threshold').value = 30; // 修正重置值
+                    document.getElementById('rsi_period_exit').value = 14;
+                    document.getElementById('rsi_sell_threshold').value = 70; // 修正重置值
                     document.getElementById('sl_pct').value = 0;
                     document.getElementById('tp_pct').value = 0;
                     document.getElementById('cash').value = 100000;
