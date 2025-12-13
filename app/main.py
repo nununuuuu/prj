@@ -62,89 +62,103 @@ def read_root(request: Request):
 
 @app.post("/api/backtest", response_model=BacktestResponse)
 def run_backtest(params: BacktestRequest):
-    print(f"收到回測請求: {params.ticker}")
-    
     try:
-        # 1. 下載數據
         df, real_ticker = get_yfinance_data(params.ticker, params.start_date, params.end_date)
-        
         if df is None or df.empty:
-            raise HTTPException(status_code=404, detail=f"找不到 {real_ticker} 的數據，請確認代碼或日期範圍。")
+            raise HTTPException(status_code=404, detail="無數據")
 
-        # 資料長度檢查
-        if len(df) < params.ma_long:
-            raise HTTPException(status_code=400, detail=f"數據筆數不足 ({len(df)} 筆)，無法計算 {params.ma_long} 日均線，請拉長日期範圍。")
-
-        # 2. 計算平均單邊手續費
         avg_commission = ((params.buy_fee_pct + params.sell_fee_pct) / 2) / 100
-
-        # 3. 初始化回測
         bt = Backtest(df, SmaRsiStrategy, cash=params.cash, commission=avg_commission)
         
-        # 4. 執行策略
+        # 執行回測 (移除 use_death_cross)
         stats = bt.run(
             n1=params.ma_short, 
             n2=params.ma_long, 
+            n_rsi=params.rsi_period,
+            rsi_overbought=params.rsi_overbought,
             sl_pct=params.stop_loss_pct,
             tp_pct=params.take_profit_pct
         )
         
-        # 5. 整理數據回傳
+        # ... (Equity Curve, Buy&Hold 處理保持不變) ...
         equity_curve = stats._equity_curve
-        trades = stats._trades
-        
-        # --- 計算 Buy & Hold (基準線) ---
         bh_list = []
         if len(df) > 0:
             first_price = df['Close'].iloc[0]
             if first_price > 0:
                 bh_equity_series = (df['Close'] / first_price) * params.cash
                 bh_list = [{"time": t.strftime("%Y-%m-%d"), "value": v} for t, v in zip(bh_equity_series.index, bh_equity_series)]
-
-        # --- 格式化數據 ---
+        
         equity_list = [{"time": t.strftime("%Y-%m-%d"), "value": v} for t, v in zip(equity_curve.index, equity_curve['Equity'])]
         price_list = [{"time": t.strftime("%Y-%m-%d"), "value": v} for t, v in zip(df.index, df['Close'])]
-
-        # --- 整理交易紀錄 ---
-        trade_list = []
+        
+        # =========================================
+        #   生成詳細交易紀錄 (包含 RSI, SMA 數值)
+        # =========================================
+        trades_df = stats._trades
+        detailed_trades = [] # 這是要傳給前端列表用的
+        
+        # 從策略實例中取得指標陣列
+        strategy = stats._strategy
+        rsi_arr = strategy.rsi
+        sma1_arr = strategy.sma1
+        sma2_arr = strategy.sma2
+        
+        # 計算最大連虧
         max_consecutive_loss = 0
         current_loss = 0
-        
-        if not trades.empty:
-            for i, row in trades.iterrows():
-                trade_list.append({
-                    "time": row['EntryTime'].strftime("%Y-%m-%d"),
-                    "price": row['EntryPrice'],
-                    "type": "buy"
+
+        if not trades_df.empty:
+            for i, row in trades_df.iterrows():
+                # 取得索引位置
+                entry_idx = row['EntryBar']
+                exit_idx = row['ExitBar']
+                
+                # 安全地取得數值 (防止索引越界)
+                entry_rsi = rsi_arr[entry_idx] if entry_idx < len(rsi_arr) else 0
+                
+                # 出場時的均線 (用於顯示死叉狀態)
+                exit_sma1 = sma1_arr[exit_idx] if exit_idx < len(sma1_arr) else 0
+                exit_sma2 = sma2_arr[exit_idx] if exit_idx < len(sma2_array) else 0 # 注意這裡要用 sma2_arr
+
+                # 建立詳細物件
+                detailed_trades.append({
+                    "entry_date": row['EntryTime'].strftime("%Y-%m-%d"),
+                    "exit_date": row['ExitTime'].strftime("%Y-%m-%d"),
+                    "entry_price": round(row['EntryPrice'], 2),
+                    "exit_price": round(row['ExitPrice'], 2),
+                    "size": int(abs(row['Size'])),
+                    "pnl": round(row['PnL'], 0),
+                    "return_pct": round(row['ReturnPct'] * 100, 2),
+                    # 指標數據
+                    "entry_rsi": round(entry_rsi, 2),
+                    "exit_sma_short": round(exit_sma1, 2),
+                    "exit_sma_long": round(exit_sma2, 2)
                 })
-                trade_list.append({
-                    "time": row['ExitTime'].strftime("%Y-%m-%d"),
-                    "price": row['ExitPrice'],
-                    "type": "sell"
-                })
-                # 連虧計算
+
                 if row['PnL'] < 0:
                     current_loss += 1
                     max_consecutive_loss = max(max_consecutive_loss, current_loss)
                 else:
                     current_loss = 0
 
-        # --- 計算熱力圖 (這是您報錯的地方) ---
-        heatmap_data = {}  # <--- 關鍵修復：這裡必須先初始化為空字典
-        
+        # 圖表用的簡單交易點
+        chart_trades = []
+        for i, row in trades_df.iterrows():
+             chart_trades.append({"time": row['EntryTime'].strftime("%Y-%m-%d"), "price": row['EntryPrice'], "type": "buy"})
+             chart_trades.append({"time": row['ExitTime'].strftime("%Y-%m-%d"), "price": row['ExitPrice'], "type": "sell"})
+
+        # Heatmap 保持不變
+        heatmap_data = {}
         if not equity_curve.empty:
             equity_df = pd.DataFrame(equity_curve['Equity'])
-            # 使用 ME 代表 Month End
-            monthly_df = equity_df.resample('ME').last()
+            monthly_df = equity_df.resample('ME').last() if hasattr(equity_df, 'resample') else equity_df
             monthly_df['Return'] = monthly_df['Equity'].pct_change() * 100
-            
             for date, row in monthly_df.iterrows():
-                val = row['Return']
-                if pd.isna(val): continue
+                if pd.isna(row['Return']): continue
                 if date.year not in heatmap_data: heatmap_data[date.year] = {}
-                heatmap_data[date.year][date.month] = round(val, 2)
+                heatmap_data[date.year][date.month] = round(row['Return'], 2)
 
-        # 6. 回傳結果
         return {
             "ticker": real_ticker,
             "final_equity": round(stats["Equity Final [$]"], 0),
@@ -153,18 +167,16 @@ def run_backtest(params: BacktestRequest):
             "buy_and_hold_return": round(stats["Buy & Hold Return [%]"], 2),
             "win_rate": round(stats["Win Rate [%]"], 2),
             "total_trades": int(stats["# Trades"]),
-            "avg_pnl": round(trades['PnL'].mean(), 0) if not trades.empty else 0,
+            "avg_pnl": round(trades_df['PnL'].mean(), 0) if not trades_df.empty else 0,
             "max_consecutive_loss": max_consecutive_loss,
             "equity_curve": equity_list,
             "price_data": price_list,
-            "trades": trade_list,
+            "trades": chart_trades,
             "heatmap_data": heatmap_data,
-            "buy_and_hold_curve": bh_list
+            "buy_and_hold_curve": bh_list,
+            "detailed_trades": detailed_trades # 傳回給前端列表用
         }
-
     except Exception as e:
-        # 印出詳細錯誤到終端機
-        print("後端發生嚴重錯誤:")
+        import traceback
         traceback.print_exc()
-        # 回傳 500 錯誤給前端顯示
-        raise HTTPException(status_code=500, detail=f"後端運算錯誤: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))

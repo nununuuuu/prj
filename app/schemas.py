@@ -8,7 +8,8 @@ class BacktestRequest(BaseModel):
     cash: float = 100000
     ma_short: int = 10
     ma_long: int = 20
-    rsi_period: int = 14
+    rsi_period: int = 14  # 新增：RSI 計算週期
+    rsi_overbought: int = 70 # 新增：RSI 過熱閾值 (用於進場過濾)
     buy_fee_pct: float = 0.1425
     sell_fee_pct: float = 0.4425
     stop_loss_pct: float = 0.0
@@ -30,5 +31,6 @@ class BacktestResponse(BaseModel):
     equity_curve: List[Dict]  # 資金曲線
     price_data: List[Dict]    # 股價走勢 (畫背景用)
     trades: List[Dict]        # 交易點位 (畫買賣點用)
+    detailed_trades: Optional[List[Dict]] = [] 
     heatmap_data: Dict[int, Dict[int, float]] # 熱力圖數據 {Year: {Month: Return}}
     buy_and_hold_curve: List[Dict]
