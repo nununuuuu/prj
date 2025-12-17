@@ -189,14 +189,19 @@
             <!-- 共用風險控制 -->
             <div class="space-y-3">
                 <p class="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">風險控制</p>
-                <div class="grid grid-cols-2 gap-3">
-                    <div><label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">停損 (%)</label>
+                <div class="grid grid-cols-3 gap-3">
+                    <div><label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">固定停損 (%)</label>
                         <input type="number" id="sl_pct" value="0" step="0.5"
                             class="w-full border border-gray-200 dark:border-slate-600 rounded-lg p-2 text-sm text-red-600 dark:text-red-400 font-bold bg-red-50 dark:bg-red-900/20 focus:bg-white dark:focus:bg-slate-700 transition">
                     </div>
-                    <div><label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">停利 (%)</label>
+                    <div><label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">固定停利 (%)</label>
                         <input type="number" id="tp_pct" value="0" step="0.5"
                             class="w-full border border-gray-200 dark:border-slate-600 rounded-lg p-2 text-sm text-green-600 dark:text-green-400 font-bold bg-green-50 dark:bg-green-900/20 focus:bg-white dark:focus:bg-slate-700 transition">
+                    </div>
+                    <!-- 移動停損 -->
+                    <div><label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">移動停損 (%)</label>
+                        <input type="number" id="ts_pct" value="0" step="0.5"
+                            class="w-full border border-gray-200 dark:border-slate-600 rounded-lg p-2 text-sm text-orange-600 dark:text-orange-400 font-bold bg-orange-50 dark:bg-orange-900/20 focus:bg-white dark:focus:bg-slate-700 transition">
                     </div>
                 </div>
                 <details class="group">
@@ -241,7 +246,7 @@
         class="flex-1 bg-gray-100 dark:bg-slate-900 h-full overflow-y-auto custom-scrollbar relative transition-colors duration-200">
         <div class="max-w-7xl mx-auto p-4 lg:p-6 space-y-6">
 
-            <!-- 1. 策略描述區 (會根據模式動態切換) -->
+            <!-- 1. 策略描述區 (根據模式動態切換) -->
             <div id="strategy-desc-card"
                 class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 transition-colors duration-200">
                 <div class="p-6 border-b border-gray-100 dark:border-slate-700">
@@ -250,7 +255,7 @@
                         <span id="strategy-title">策略邏輯說明</span>
                     </h3>
 
-                    <!-- 副標題區 (這裡會根據模式切換內容) -->
+                    <!-- 副標題區 (根據模式切換內容) -->
                     <p class="text-sm text-gray-500 dark:text-gray-400">
                         <span id="subtitle-basic">
                             <span class="font-bold text-blue-600 dark:text-blue-400">核心邏輯：</span> 採用雙均線 (MA) 搭配 RSI
@@ -296,15 +301,16 @@
                 </div>
                 <div
                     class="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 flex flex-col justify-between">
-                    <p class="text-xs font-medium text-gray-400 dark:text-gray-500">買進並持有 (B&H)</p>
+                    <p class="text-xs font-medium text-gray-400 dark:text-gray-500">買進並持有</p>
                     <p class="text-3xl font-bold text-gray-300 dark:text-gray-600 mt-1" id="res_bh_return">--%</p>
                 </div>
                 <div
                     class="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 flex flex-col justify-between">
-                    <p class="text-xs font-medium text-gray-400 dark:text-gray-500">勝率 / 交易次數</p>
+                    <p class="text-xs font-medium text-gray-400 dark:text-gray-500">勝率(獲利次數/總交易次數)</p>
                     <div class="flex items-baseline gap-2 mt-1">
                         <p class="text-3xl font-bold text-gray-300 dark:text-gray-600" id="res_win_rate">--%</p>
-                        <span class="text-sm text-gray-400 dark:text-gray-500">(<span id="res_trades">--</span>筆)</span>
+                        <span class="text-sm text-gray-400 dark:text-gray-500">(<span
+                                id="res_trades">--/--</span>)</span>
                     </div>
                 </div>
                 <div
@@ -331,8 +337,7 @@
                 <div class="relative w-full h-[400px] flex items-center justify-center bg-gray-50 dark:bg-slate-900/50 rounded-xl border border-dashed border-gray-200 dark:border-slate-700"
                     id="chartContainer">
                     <div class="text-center" id="chartPlaceholder">
-                        <div class="mb-3 text-4xl">📊</div>
-                        <p class="text-gray-400 dark:text-gray-500 text-sm">請在左側輸入代碼並執行回測</p>
+                        <p class="text-gray-400 dark:text-gray-500 text-sm">請完成參數設定並執行回測</p>
                     </div>
                     <canvas id="mainChart" class="hidden"></canvas>
                 </div>
@@ -348,7 +353,7 @@
                                 d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z">
                             </path>
                         </svg>
-                        交易詳細分析
+                        交易分析
                     </h3>
                 </div>
                 <div class="p-6">
@@ -388,7 +393,7 @@
                         <div class="w-full xl:w-80 flex-shrink-0 space-y-4">
                             <h4
                                 class="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-4">
-                                詳細績效報告</h4>
+                                績效報告</h4>
                             <table
                                 class="w-full text-sm border-collapse border border-gray-100 dark:border-slate-700 rounded-lg overflow-hidden">
                                 <tbody class="divide-y divide-gray-100 dark:divide-slate-700">
@@ -443,6 +448,7 @@
                 </div>
             </div>
             <footer class="text-center text-xs text-gray-400 dark:text-gray-600 py-6">&copy; SmartInvest Project.
+                此研究僅供教育用途，不提供任何投資建議
             </footer>
         </div>
         <script src="/static/js/main.js"></script>

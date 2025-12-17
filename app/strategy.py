@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 
 # ==========================================
-#  技術指標計算函數庫
+#  技術指標計算函數庫 
 # ==========================================
 def SMA(values, n):
     """ 簡單移動平均線 """
@@ -52,10 +52,10 @@ def BBANDS(values, n=20, std=2.0):
 #  通用策略類別 (Universal Strategy)
 # ==========================================
 class UniversalStrategy(Strategy):
-    # 模式選擇: 基礎 or 進階
+    # 模式選擇: 'basic' (基礎) 或 'advanced' (進階)
     mode = "basic"
     
-    # --- 基礎模式 ---
+    # --- 基礎模式參數 (Basic Mode) ---
     n1 = 10
     n2 = 60
     n_rsi_entry = 14
@@ -63,13 +63,14 @@ class UniversalStrategy(Strategy):
     n_rsi_exit = 14
     rsi_sell_threshold = 80
     
-    # --- 進階模式 ---
+    # --- 進階模式設定 ---
     entry_config = [] 
     exit_config = []
     
     # --- 風險控制參數 ---
-    sl_pct = 0.0 # 停損 %
-    tp_pct = 0.0 # 停利 %
+    sl_pct = 0.0 # 固定停損 %
+    tp_pct = 0.0 # 固定停利 %
+    trailing_stop_pct = 0.0 # 移動停損 % (全域)
 
     def init(self):
         self.price = self.data.Close
@@ -198,9 +199,25 @@ class UniversalStrategy(Strategy):
     def next(self):
         price = self.price[-1]
 
-        # ----------------------
-        #  基礎模式邏輯
-        # ----------------------
+        # ==========================================================
+        #  全域風控：移動停損邏輯 (Trailing Stop)
+        # ==========================================================
+        # 只有在持有部位，且有設定移動停損時才執行
+        if self.position and self.trailing_stop_pct > 0:
+            if self.position.is_long:
+                # 計算當前價格回檔後的價格
+                new_sl = price * (1 - self.trailing_stop_pct / 100)
+                
+                # 取得目前的停損價 (如果沒有設 SL，預設為 0)
+                current_sl = self.position.sl or 0
+                
+                # 移動停損的核心：只能往上移，不能往下移 (Ratchet)
+                if new_sl > current_sl:
+                    self.position.sl = new_sl
+
+        # ==========================================================
+        #  基礎模式 (Basic Mode)
+        # ==========================================================
         if self.mode == "basic":
             if self.position:
                 # 出場：死亡交叉 OR RSI過熱
@@ -209,21 +226,41 @@ class UniversalStrategy(Strategy):
             else:
                 # 進場：黃金交叉 AND RSI低檔
                 if crossover(self.sma1, self.sma2) and self.rsi_entry[-1] < self.rsi_buy_threshold:
+                    # 計算固定停損/停利價格
                     sl = price * (1 - self.sl_pct/100) if self.sl_pct > 0 else None
                     tp = price * (1 + self.tp_pct/100) if self.tp_pct > 0 else None
+                    
+                    # 處理移動停損的初始值 (進場時，如果移動停損算出來的 SL 比固定 SL 高，就用移動停損)
+                    if self.trailing_stop_pct > 0:
+                        initial_ts = price * (1 - self.trailing_stop_pct / 100)
+                        if sl:
+                            sl = max(sl, initial_ts)
+                        else:
+                            sl = initial_ts
+
                     self.buy(sl=sl, tp=tp)
 
-        # ----------------------
-        #  進階模式邏輯
-        # ----------------------
+        # ==========================================================
+        #  進階模式 (Advanced Mode)
+        # ==========================================================
         elif self.mode == "advanced":
             if self.position:
-                # 檢查是否滿足任一出場條件
+                # 檢查是否滿足任一出場條件 (OR)
                 if self.check_signal(self.exit_config, is_entry=False):
                     self.position.close()
             else:
-                # 檢查是否滿足所有進場條件
+                # 檢查是否滿足所有進場條件 (AND)
                 if self.check_signal(self.entry_config, is_entry=True):
+                    # 計算固定停損/停利價格
                     sl = price * (1 - self.sl_pct/100) if self.sl_pct > 0 else None
                     tp = price * (1 + self.tp_pct/100) if self.tp_pct > 0 else None
+                    
+                    # 處理移動停損的初始值
+                    if self.trailing_stop_pct > 0:
+                        initial_ts = price * (1 - self.trailing_stop_pct / 100)
+                        if sl:
+                            sl = max(sl, initial_ts)
+                        else:
+                            sl = initial_ts
+
                     self.buy(sl=sl, tp=tp)

@@ -14,7 +14,7 @@ import numpy as np
 import math
 import os
 
-# --- 相容性補丁 ---
+# --- 加強相容性 ---
 if not hasattr(pd.Series, 'iteritems'):
     pd.Series.iteritems = pd.Series.items
 if not hasattr(np, 'float'):
@@ -47,13 +47,13 @@ def safe_num(value, decimal=2):
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    print(f"❌ [CRITICAL ERROR] {str(exc)}")
+    print(f"[CRITICAL ERROR] {str(exc)}")
     traceback.print_exc()
     return JSONResponse(status_code=500, content={"detail": f"Server Error: {str(exc)}"})
 
 @lru_cache(maxsize=64)
 def _download_from_yahoo(ticker: str, start: str, end: str):
-    print(f"📥 [YFinance] 下載: {ticker}")
+    print(f"[YFinance] 下載: {ticker}")
     try:
         return yf.download(ticker, start=start, end=end, progress=False, auto_adjust=True)
     except Exception:
@@ -86,7 +86,7 @@ async def get_yfinance_data(ticker: str, start: str, end: str):
         
         return df, ticker
     except Exception as e:
-        print(f"❌ 數據處理錯誤: {e}")
+        print(f"數據處理錯誤: {e}")
         return None, ticker
 
 @app.get("/")
@@ -170,7 +170,8 @@ async def run_backtest(params: BacktestRequest):
     strat_kwargs = {
         'mode': params.strategy_mode,
         'sl_pct': params.stop_loss_pct,
-        'tp_pct': params.take_profit_pct
+        'tp_pct': params.take_profit_pct,
+        'trailing_stop_pct': params.trailing_stop_pct
     }
 
     if params.strategy_mode == 'basic':
@@ -200,6 +201,7 @@ async def run_backtest(params: BacktestRequest):
     
     equity_curve = stats._equity_curve
     trades_df = stats._trades
+    winning_trades = len(trades_df[trades_df['PnL'] > 0]) if not trades_df.empty else 0
     strategy = stats._strategy
     
     bh_list = []
@@ -229,13 +231,21 @@ async def run_backtest(params: BacktestRequest):
             if params.strategy_mode == 'basic':
                 # Basic Mode: 固定抓 SMA 和 RSI
                 try:
+                    # 1. 抓取【進場】時的指標數值
                     e_rsi = safe_num(strategy.rsi_entry[e_idx]) if len(strategy.rsi_entry) > e_idx else 0
+                    e_sma1 = safe_num(strategy.sma1[e_idx]) if len(strategy.sma1) > e_idx else 0
+                    e_sma2 = safe_num(strategy.sma2[e_idx]) if len(strategy.sma2) > e_idx else 0
+                    
+                    # 2. 抓取【出場】時的指標數值
                     x_rsi = safe_num(strategy.rsi_exit[x_idx]) if len(strategy.rsi_exit) > x_idx else 0
                     x_sma1 = safe_num(strategy.sma1[x_idx]) if len(strategy.sma1) > x_idx else 0
                     x_sma2 = safe_num(strategy.sma2[x_idx]) if len(strategy.sma2) > x_idx else 0
-                    entry_note = f"進場RSI: {e_rsi}"
-                    exit_note = f"SMA: {x_sma1}/{x_sma2} | 出場RSI: {x_rsi}"
-                except: pass
+                    
+                    # 3. 組合顯示字串 (兩邊都顯示 SMA)
+                    entry_note = f"SMA: {e_sma1}/{e_sma2} | RSI: {e_rsi}"
+                    exit_note = f"SMA: {x_sma1}/{x_sma2} | RSI: {x_rsi}"
+                except: 
+                    pass
             else:
                 # Advanced Mode: 抓取所有已啟用的策略數值，並用 " | " 串接
                 
@@ -300,6 +310,7 @@ async def run_backtest(params: BacktestRequest):
         "annual_return": safe_num(stats["Return (Ann.) [%]"]),
         "buy_and_hold_return": safe_num(stats["Buy & Hold Return [%]"]),
         "win_rate": safe_num(stats["Win Rate [%]"]),
+        "winning_trades": winning_trades,
         "total_trades": int(stats["# Trades"]),
         "avg_pnl": safe_num(trades_df['PnL'].mean(), 0) if not trades_df.empty else 0,
         "max_consecutive_loss": max_consecutive_loss,

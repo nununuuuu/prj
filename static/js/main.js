@@ -22,8 +22,7 @@ const STRATEGY_DEFINITIONS = {
         'RSI_OVERBOUGHT': { name: 'RSI 超買', params: [{ k: 'period', l: '週期', v: 14 }, { k: 'threshold', l: '閾值 >', v: 70 }] },
         'MACD_DEATH': { name: 'MACD 死亡交叉', params: [{ k: 'fast', l: '快線', v: 12 }, { k: 'slow', l: '慢線', v: 26 }, { k: 'signal', l: 'Signal', v: 9 }] },
         'KD_DEATH': { name: 'KD 死亡交叉', params: [{ k: 'period', l: '週期', v: 9 }, { k: 'threshold', l: 'D值 >', v: 80 }] },
-        'BB_REVERSE': { name: '布林通道反轉', params: [{ k: 'period', l: '週期', v: 20 }, { k: 'std', l: '標準差', v: 2.0 }] },
-        'TRAILING_STOP': { name: '移動停損', params: [{ k: 'pct', l: '回檔 %', v: 5.0 }] }
+        'BB_REVERSE': { name: '布林通道反轉', params: [{ k: 'period', l: '週期', v: 20 }, { k: 'std', l: '標準差', v: 2.0 }] }
     }
 };
 
@@ -232,6 +231,7 @@ async function executeBacktest() {
         sell_fee_pct: parseFloat(document.getElementById('sell_fee').value),
         stop_loss_pct: parseFloat(document.getElementById('sl_pct').value),
         take_profit_pct: parseFloat(document.getElementById('tp_pct').value),
+        trailing_stop_pct: parseFloat(document.getElementById('ts_pct').value) || 0,
         strategy_mode: currentMode
     };
 
@@ -298,7 +298,7 @@ function updateDashboard(data) {
     winRateEl.innerText = data.win_rate + '%';
     winRateEl.classList.remove('text-gray-300', 'dark:text-gray-600');
     winRateEl.classList.add('text-gray-900', 'dark:text-white');
-    document.getElementById('res_trades').innerText = data.total_trades;
+    document.getElementById('res_trades').innerText = `${data.winning_trades} / ${data.total_trades}`;
 
     updateTableValue('tbl_total_return', data.total_return, true);
     updateTableValue('tbl_ann_return', data.annual_return, true);
@@ -413,7 +413,7 @@ function renderMainChart(priceData, trades, equityData, bhData) {
     };
 
     const bhDataset = {
-        label: '買入持有 (%)', data: bhReturnData,
+        label: '買進並持有 (%)', data: bhReturnData,
         borderColor: '#9ca3af', borderWidth: 2, borderDash: [5, 5],
         pointRadius: 0, tension: 0.1, fill: false,
         yAxisID: 'y1', order: 2, legendOrder: 30

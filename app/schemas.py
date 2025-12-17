@@ -24,6 +24,7 @@ class BacktestRequest(BaseModel):
     rsi_sell_threshold: int = 80  
     stop_loss_pct: float = 0.0
     take_profit_pct: float = 0.0
+    trailing_stop_pct: float = 0.0 
 
     # --- 進階模式參數 ---
     # 策略名稱
@@ -46,6 +47,7 @@ class BacktestResponse(BaseModel):
     annual_return: float
     buy_and_hold_return: float
     win_rate: float
+    winning_trades: int
     total_trades: int
     avg_pnl: float
     max_consecutive_loss: int
