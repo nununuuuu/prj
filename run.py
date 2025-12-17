@@ -6,8 +6,8 @@ import sys
 import os
 
 def start_browser():
-    """等待 1.5 秒讓 Server 啟動後，自動開啟預設瀏覽器"""
-    time.sleep(1.5)
+    """等待 2 秒讓 Server 啟動後，自動開啟預設瀏覽器"""
+    time.sleep(2)
     url = "http://127.0.0.1:8000"
     print(f"正在開啟瀏覽器: {url}")
     webbrowser.open(url)
