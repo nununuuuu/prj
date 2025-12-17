@@ -5,9 +5,8 @@ let lockedDatasets = [];
 let lastChartData = null;
 
 document.addEventListener('DOMContentLoaded', function () {
-    console.log("System Ready: Smart Investment Dashboard v3.4 (All Functions Restored)");
+    console.log("System Ready: Smart Investment Dashboard v3.5 (Custom Legend Groups)");
 
-    // 1. 日期初始化
     const formatDate = (date) => {
         const d = new Date(date);
         let month = '' + (d.getMonth() + 1);
@@ -194,7 +193,7 @@ function updateTableValue(id, value, isGreenRed) {
 }
 
 // =========================================================
-//  核心圖表繪製 (支援雙軸、訊號映射、多重鎖定、圖例排序)
+//  核心圖表繪製 (支援雙軸、訊號映射、多重鎖定)
 // =========================================================
 function renderMainChart(priceData, trades, equityData, bhData) {
     const ctx = document.getElementById('mainChart').getContext('2d');
@@ -217,7 +216,7 @@ function renderMainChart(priceData, trades, equityData, bhData) {
     const tradeMap = {};
     trades.forEach(t => { tradeMap[t.time] = { price: t.price, type: t.type }; });
 
-    // 映射買賣點到策略線上 (y1軸)
+    // 映射買賣點
     const buyMarkers = labels.map((date, index) => {
         const t = tradeMap[date];
         return (t && t.type === 'buy') ? strategyReturnData[index] : null;
@@ -228,51 +227,44 @@ function renderMainChart(priceData, trades, equityData, bhData) {
         return (t && t.type === 'sell') ? strategyReturnData[index] : null;
     });
 
-    // --- 定義 Datasets (加入 legendOrder 參數來控制圖例順序) ---
-    // 當前策略組: 10~19
+    // --- 定義 Datasets (加入 legendOrder 用於分組) ---
+    // 當前策略組 (10-19)
     const strategyDataset = {
-        label: '當前策略 (%)',
-        data: strategyReturnData,
-        borderColor: '#3b82f6',
-        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+        label: '當前策略 (%)', data: strategyReturnData,
+        borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)',
         borderWidth: 2, pointRadius: 0, tension: 0.1, fill: true,
-        yAxisID: 'y1', order: 1,
-        legendOrder: 10 // 排序權重
+        yAxisID: 'y1', order: 1, legendOrder: 10
     };
     const buyDataset = {
         label: '當前-買進', data: buyMarkers,
-        borderColor: '#ef4444', backgroundColor: '#ef4444',
+        borderColor: '#f62323', backgroundColor: '#f62323',
         pointStyle: 'triangle', rotation: 0, pointRadius: 6, pointHoverRadius: 8,
-        type: 'scatter', yAxisID: 'y1', order: 0,
-        legendOrder: 11 // 排在策略線後面
+        type: 'scatter', yAxisID: 'y1', order: 0, legendOrder: 11
     };
     const sellDataset = {
         label: '當前-賣出', data: sellMarkers,
-        borderColor: '#10b981', backgroundColor: '#10b981',
+        borderColor: '#0add97ff', backgroundColor: '#0add97ff',
         pointStyle: 'triangle', rotation: 180, pointRadius: 6, pointHoverRadius: 8,
-        type: 'scatter', yAxisID: 'y1', order: 0,
-        legendOrder: 12
+        type: 'scatter', yAxisID: 'y1', order: 0, legendOrder: 12
     };
 
-    // 市場行情組: 30~39
+    // 市場行情組 (30-39)
     const bhDataset = {
         label: '買入持有 (%)', data: bhReturnData,
         borderColor: '#9ca3af', borderWidth: 2, borderDash: [5, 5],
         pointRadius: 0, tension: 0.1, fill: false,
-        yAxisID: 'y1', order: 2,
-        legendOrder: 30 // 排在最後
+        yAxisID: 'y1', order: 2, legendOrder: 30
     };
     const priceDataset = {
         label: '股價 (Price)', data: priceData.map(d => d.value),
         borderColor: isDark ? '#475569' : '#e2e8f0',
         borderWidth: 1, pointRadius: 0, tension: 0.1, fill: false,
-        yAxisID: 'y', order: 4,
-        legendOrder: 31
+        yAxisID: 'y', order: 4, legendOrder: 31
     };
 
     let datasets = [strategyDataset, buyDataset, sellDataset, bhDataset, priceDataset];
 
-    // 加入鎖定的 Datasets
+    // 鎖定策略 (20-29)
     if (lockedDatasets.length > 0) {
         datasets.push(...lockedDatasets);
     }
@@ -285,20 +277,13 @@ function renderMainChart(priceData, trades, equityData, bhData) {
             interaction: { mode: 'index', intersect: false },
             stacked: false,
             scales: {
-                x: {
-                    ticks: { maxTicksLimit: 12, color: textColor },
-                    grid: { color: gridColor }
-                },
-                y: { // 左軸: 股價
+                x: { ticks: { maxTicksLimit: 12, color: textColor }, grid: { color: gridColor } },
+                y: {
                     type: 'linear', display: true, position: 'left',
-                    title: {
-                        display: true, text: '股價 (Price)',
-                        color: leftAxisColor, font: { weight: 'bold' }
-                    },
-                    ticks: { color: leftAxisColor },
-                    grid: { display: false }
+                    title: { display: true, text: '股價 (Price)', color: leftAxisColor, font: { weight: 'bold' } },
+                    ticks: { color: leftAxisColor }, grid: { display: false }
                 },
-                y1: { // 右軸: 報酬率
+                y1: {
                     type: 'linear', display: true, position: 'right',
                     title: { display: true, text: '累積報酬率 (%)', color: '#3b82f6' },
                     ticks: { color: textColor, callback: (v) => v + '%' },
@@ -306,39 +291,26 @@ function renderMainChart(priceData, trades, equityData, bhData) {
                 }
             },
             plugins: {
-                legend: {
-                    labels: {
-                        color: textColor,
-                        usePointStyle: true,
-                        // [關鍵] 自定義排序邏輯：依照 legendOrder 大小排列
-                        sort: function (a, b, data) {
-                            const dsA = data.datasets[a.datasetIndex];
-                            const dsB = data.datasets[b.datasetIndex];
-                            return (dsA.legendOrder || 99) - (dsB.legendOrder || 99);
-                        }
-                    }
-                },
+                // 1. 關閉預設圖例 (我們改用下方自定義的 HTML 圖例)
+                legend: { display: false },
                 tooltip: {
                     callbacks: {
                         label: function (context) {
                             let label = context.dataset.label || '';
-                            if (label.includes('訊號') || label.includes('鎖定-')) {
+                            if (label.includes('訊號') || label.includes('鎖定-') || label.includes('當前-')) {
                                 const date = context.label;
-                                if (label.includes('鎖定')) {
-                                    return `${label}: ${context.parsed.y.toFixed(2)}%`;
-                                }
+                                if (label.includes('鎖定')) return `${label}: ${context.parsed.y.toFixed(2)}%`;
                                 const t = tradeMap[date];
                                 if (t) return `${label}: $${t.price} (@ ${context.parsed.y.toFixed(2)}%)`;
                             }
-                            if (label) { label += ': '; }
+                            if (label) label += ': ';
                             if (context.parsed.y !== null) {
                                 if (context.dataset.yAxisID === 'y1') {
                                     const val = context.parsed.y;
                                     const sign = val > 0 ? '+' : '';
-                                    label += sign + val.toFixed(2) + '%';
-                                } else {
-                                    label += context.parsed.y.toFixed(2);
+                                    return label + sign + val.toFixed(2) + '%';
                                 }
+                                return label + context.parsed.y.toFixed(2);
                             }
                             return label;
                         }
@@ -351,51 +323,161 @@ function renderMainChart(priceData, trades, equityData, bhData) {
             }
         }
     });
+
+    // 2. 呼叫並生成自定義 HTML 圖例
+    updateCustomLegend(mainChart);
+}
+
+// ---------------------------------------------------------
+//  [新增功能] 客製化 HTML 圖例生成器 (支援分組)
+// ---------------------------------------------------------
+function updateCustomLegend(chart) {
+    let legendDiv = document.getElementById('js-legend-container');
+    if (!legendDiv) {
+        // 如果容器不存在，建立一個並插入到 chartContainer 的最上方
+        const chartContainer = document.getElementById('chartContainer');
+        legendDiv = document.createElement('div');
+        legendDiv.id = 'js-legend-container';
+        legendDiv.className = "w-full p-2 flex flex-wrap gap-4 justify-center bg-gray-50/80 dark:bg-slate-800/80 border-b border-gray-100 dark:border-slate-700 mb-2 rounded-t-xl z-20 absolute top-0 left-0";
+        chartContainer.prepend(legendDiv);
+    }
+    legendDiv.innerHTML = ''; // 清空舊圖例
+
+    // 定義分組容器
+    const groups = {
+        'current': { title: '當前策略', items: [] },
+        'locked': { title: '鎖定策略', items: [] },
+        'market': { title: '市場參考', items: [] }
+    };
+
+    // 遍歷所有 Dataset 並分配到群組
+    chart.data.datasets.forEach((ds, index) => {
+        const item = {
+            text: ds.label,
+            color: ds.borderColor || ds.backgroundColor,
+            index: index,
+            hidden: !chart.isDatasetVisible(index),
+            pointStyle: ds.pointStyle,
+            rotation: ds.rotation,
+            order: ds.legendOrder || 99
+        };
+
+        if (item.order >= 10 && item.order < 20) groups.current.items.push(item);
+        else if (item.order >= 20 && item.order < 30) groups.locked.items.push(item);
+        else if (item.order >= 30) groups.market.items.push(item);
+    });
+
+    // 生成 HTML
+    Object.keys(groups).forEach(key => {
+        const group = groups[key];
+        if (group.items.length === 0) return;
+
+        // 群組框
+        const groupEl = document.createElement('div');
+        groupEl.className = "flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-slate-700/50 rounded-lg shadow-sm border border-gray-200 dark:border-slate-600";
+
+        // 群組標題 (Icon + Text)
+        const titleEl = document.createElement('div');
+        titleEl.className = "text-[10px] font-bold text-gray-400 dark:text-gray-400 uppercase tracking-wider mr-1 border-r border-gray-200 dark:border-slate-500 pr-2";
+        titleEl.innerText = group.title;
+        groupEl.appendChild(titleEl);
+
+        // 群組內的按鈕
+        group.items.forEach(item => {
+            const btn = document.createElement('button');
+            btn.className = `flex items-center gap-1.5 text-xs font-medium transition-all duration-200 ${item.hidden ? 'opacity-40 grayscale decoration-slice' : 'opacity-100'}`;
+
+            // 繪製圖示 (線條或三角形)
+            const icon = document.createElement('span');
+            icon.className = "inline-block";
+
+            if (item.pointStyle === 'triangle') {
+                // 三角形樣式
+                icon.style.width = '0';
+                icon.style.height = '0';
+                icon.style.borderLeft = '5px solid transparent';
+                icon.style.borderRight = '5px solid transparent';
+                if (item.rotation === 180) { // Down
+                    icon.style.borderTop = `6px solid ${item.color}`;
+                } else { // Up
+                    icon.style.borderBottom = `6px solid ${item.color}`;
+                }
+            } else {
+                // 線條樣式 (圓形節點)
+                icon.style.width = '8px';
+                icon.style.height = '8px';
+                icon.style.backgroundColor = item.color;
+                icon.style.borderRadius = '50%';
+                if (item.hidden) icon.style.border = `2px solid ${item.color}`;
+            }
+
+            // 簡化文字 (去除重複的前綴)
+            let labelText = item.text
+                .replace('當前-', '')
+                .replace('鎖定-', '')
+                .replace(' (%)', '')
+                .replace('訊號', ''); // "買進訊號" -> "買進"
+
+            const textSpan = document.createElement('span');
+            textSpan.className = "text-gray-700 dark:text-gray-200";
+            textSpan.innerText = labelText;
+
+            btn.appendChild(icon);
+            btn.appendChild(textSpan);
+
+            // 點擊切換顯示
+            btn.onclick = () => {
+                chart.setDatasetVisibility(item.index, !chart.isDatasetVisible(item.index));
+                chart.update();
+                updateCustomLegend(chart); // 重新渲染圖例以更新透明度狀態
+            };
+
+            groupEl.appendChild(btn);
+        });
+
+        legendDiv.appendChild(groupEl);
+    });
 }
 
 function handleLockChart() {
     if (!mainChart) { alert("請先執行回測再鎖定"); return; }
 
-    // 找出當前資料集
     const lineDs = mainChart.data.datasets.find(d => d.label === '當前策略 (%)');
     const buyDs = mainChart.data.datasets.find(d => d.label === '當前-買進');
     const sellDs = mainChart.data.datasets.find(d => d.label === '當前-賣出');
 
     if (!lineDs) return;
 
-    // 建立鎖定 Datasets (加入 legendOrder: 20~29 讓它們排在當前策略後面)
+    // 建立鎖定 Datasets (legendOrder: 20~29)
     const lockedLine = {
         label: '已鎖定策略 (%)',
         data: [...lineDs.data],
-        borderColor: '#dd6917ff', // Orange-500
+        borderColor: '#dd6917ff',
         backgroundColor: 'rgba(249, 115, 22, 0.1)',
         borderWidth: 2, pointRadius: 0, tension: 0.1, fill: false,
-        yAxisID: 'y1', order: 2,
-        legendOrder: 20 // 鎖定組開頭
+        yAxisID: 'y1', order: 2, legendOrder: 20
     };
 
     const lockedBuy = {
         label: '鎖定-買進',
         data: [...buyDs.data],
-        borderColor: '#b91c1c', // Dark Red
-        backgroundColor: '#b91c1c',
+        borderColor: '#620404',
+        backgroundColor: '#620404',
         borderWidth: 1,
         pointStyle: 'triangle', rotation: 0,
         pointRadius: 5,
-        type: 'scatter', yAxisID: 'y1', order: 1,
-        legendOrder: 21
+        type: 'scatter', yAxisID: 'y1', order: 1, legendOrder: 21
     };
 
     const lockedSell = {
         label: '鎖定-賣出',
         data: [...sellDs.data],
-        borderColor: '#047857', // Dark Green
+        borderColor: '#047857',
         backgroundColor: '#047857',
         borderWidth: 1,
         pointStyle: 'triangle', rotation: 180,
         pointRadius: 5,
-        type: 'scatter', yAxisID: 'y1', order: 1,
-        legendOrder: 22
+        type: 'scatter', yAxisID: 'y1', order: 1, legendOrder: 22
     };
 
     lockedDatasets = [lockedLine, lockedBuy, lockedSell];
@@ -410,6 +492,7 @@ function handleLockChart() {
 }
 
 function resetZoom() { if (mainChart) mainChart.resetZoom(); }
+
 function renderHeatmap(data) {
     const tbody = document.getElementById('heatmapBody');
     tbody.innerHTML = '';
