@@ -1,12 +1,12 @@
 // static/js/main.js
 
 let mainChart = null;
+let drawdownChart = null; // 水下曲線圖表
 let lockedDatasets = [];
 let lastChartData = null;
 let currentMode = 'basic'; // 'basic' or 'advanced'
 
 // 定義策略選項與參數
-// 這裡的 key 必須對應到 backend strategy.py 的 check_signal
 const STRATEGY_DEFINITIONS = {
     // 進場
     'ENTRY': {
@@ -27,7 +27,7 @@ const STRATEGY_DEFINITIONS = {
 };
 
 document.addEventListener('DOMContentLoaded', function () {
-    console.log("System Ready: Smart Investment Dashboard v4.0 (Advanced Mode)");
+    console.log("System Ready: Smart Investment Dashboard v4.0 (Final)");
 
     // 日期初始化
     const formatDate = (date) => {
@@ -62,9 +62,12 @@ document.addEventListener('DOMContentLoaded', function () {
         if (lastChartData) {
             setTimeout(() => {
                 renderMainChart(lastChartData.priceData, lastChartData.trades, lastChartData.equityData, lastChartData.bhData);
+                renderDrawdownChart(lastChartData.drawdownCurve);
+                renderPnLHistogram(lastChartData.pnlData);
             }, 50);
         }
     });
+
 
     // 初始化下拉選單
     initStrategySelects();
@@ -110,11 +113,8 @@ function switchMode(mode) {
         tabBasic.className = "flex-1 py-1.5 rounded-md shadow-sm bg-white dark:bg-slate-600 text-blue-600 dark:text-blue-400 transition-all";
         tabAdv.className = "flex-1 py-1.5 rounded-md text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-all";
 
-        // 顯示基礎說明與副標題
         descBasic.classList.remove('hidden');
         subBasic.classList.remove('hidden');
-
-        // 隱藏進階說明與副標題
         descAdv.classList.add('hidden');
         subAdv.classList.add('hidden');
 
@@ -125,24 +125,20 @@ function switchMode(mode) {
         tabBasic.className = "flex-1 py-1.5 rounded-md text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-all";
         tabAdv.className = "flex-1 py-1.5 rounded-md shadow-sm bg-white dark:bg-slate-600 text-blue-600 dark:text-blue-400 transition-all";
 
-        // 隱藏基礎說明與副標題
         descBasic.classList.add('hidden');
         subBasic.classList.add('hidden');
-
-        // 顯示進階說明與副標題
         descAdv.classList.remove('hidden');
         subAdv.classList.remove('hidden');
     }
 }
 
-// 動態產生參數輸入框
 function renderParams(type, index) {
     const selectId = `${type}_strategy_${index}`;
     const containerId = `${type}_params_${index}_container`;
 
     const selectedValue = document.getElementById(selectId).value;
     const container = document.getElementById(containerId);
-    container.innerHTML = ''; // 清空
+    container.innerHTML = '';
 
     if (!selectedValue) return;
 
@@ -152,17 +148,16 @@ function renderParams(type, index) {
     if (config && config.params) {
         config.params.forEach(p => {
             const div = document.createElement('div');
-
             const label = document.createElement('label');
             label.className = "block text-[10px] text-gray-500 dark:text-gray-400 mb-0.5";
             label.innerText = p.l;
 
             const input = document.createElement('input');
             input.type = "number";
-            input.step = p.v % 1 === 0 ? "1" : "0.1"; // 整數或浮點
+            input.step = p.v % 1 === 0 ? "1" : "0.1";
             input.value = p.v;
             input.className = "w-full border border-gray-200 dark:border-slate-600 rounded p-1 text-xs bg-white dark:bg-slate-700 dark:text-white param-input";
-            input.dataset.key = p.k; // 存參數名
+            input.dataset.key = p.k;
 
             div.appendChild(label);
             div.appendChild(input);
@@ -243,7 +238,6 @@ async function executeBacktest() {
         payload.rsi_period_exit = parseInt(document.getElementById('rsi_period_exit').value);
         payload.rsi_sell_threshold = parseInt(document.getElementById('rsi_sell_threshold').value);
     } else {
-        // Advanced Mode Data Gathering
         const [e1_name, e1_params] = getDynamicParams('entry', 1);
         const [e2_name, e2_params] = getDynamicParams('entry', 2);
         const [x1_name, x1_params] = getDynamicParams('exit', 1);
@@ -298,6 +292,7 @@ function updateDashboard(data) {
     winRateEl.innerText = data.win_rate + '%';
     winRateEl.classList.remove('text-gray-300', 'dark:text-gray-600');
     winRateEl.classList.add('text-gray-900', 'dark:text-white');
+    // 顯示勝場/總場
     document.getElementById('res_trades').innerText = `${data.winning_trades} / ${data.total_trades}`;
 
     updateTableValue('tbl_total_return', data.total_return, true);
@@ -309,6 +304,13 @@ function updateDashboard(data) {
     mddEl.className = "p-3 font-bold text-right text-red-500 dark:text-red-400";
 
     updateTableValue('tbl_win_rate', data.win_rate, true);
+
+    // 獲利因子
+    const pfEl = document.getElementById('tbl_profit_factor');
+    if (pfEl) {
+        pfEl.innerText = data.profit_factor;
+        pfEl.className = "p-3 font-bold text-right " + (data.profit_factor >= 1.5 ? "text-green-600" : (data.profit_factor < 1 ? "text-red-500" : "text-gray-600 dark:text-gray-300"));
+    }
 
     const pnlEl = document.getElementById('res_avg_pnl');
     const pnlVal = data.avg_pnl;
@@ -328,10 +330,14 @@ function updateDashboard(data) {
         priceData: data.price_data,
         trades: data.trades,
         equityData: data.equity_curve,
-        bhData: data.buy_and_hold_curve
+        bhData: data.buy_and_hold_curve,
+        drawdownCurve: data.drawdown_curve, // 保存水下曲線資料
+        pnlData: data.pnl_histogram
     };
 
     renderMainChart(data.price_data, data.trades, data.equity_curve, data.buy_and_hold_curve);
+    renderDrawdownChart(data.drawdown_curve);
+    renderPnLHistogram(data.pnl_histogram);
     renderHeatmap(data.heatmap_data);
     renderTradeList(data.detailed_trades);
 }
@@ -357,9 +363,9 @@ function updateTableValue(id, value, isGreenRed) {
     }
 }
 
-// ---------------------------------------------------------
-//  圖表繪製 (維持之前修好的版本)
-// ---------------------------------------------------------
+// =========================================================
+//  核心圖表繪製
+// =========================================================
 function renderMainChart(priceData, trades, equityData, bhData) {
     const ctx = document.getElementById('mainChart').getContext('2d');
     if (mainChart) mainChart.destroy();
@@ -371,7 +377,6 @@ function renderMainChart(priceData, trades, equityData, bhData) {
 
     const labels = priceData.map(d => d.time);
 
-    // 計算報酬率
     const initialEquity = equityData.length > 0 ? equityData[0].value : 1;
     const strategyReturnData = equityData.map(d => ((d.value - initialEquity) / initialEquity) * 100);
 
@@ -381,7 +386,6 @@ function renderMainChart(priceData, trades, equityData, bhData) {
     const tradeMap = {};
     trades.forEach(t => { tradeMap[t.time] = { price: t.price, type: t.type }; });
 
-    // 映射買賣點
     const buyMarkers = labels.map((date, index) => {
         const t = tradeMap[date];
         return (t && t.type === 'buy') ? strategyReturnData[index] : null;
@@ -392,7 +396,6 @@ function renderMainChart(priceData, trades, equityData, bhData) {
         return (t && t.type === 'sell') ? strategyReturnData[index] : null;
     });
 
-    // --- 定義 Datasets ---
     const strategyDataset = {
         label: '當前策略 (%)', data: strategyReturnData,
         borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)',
@@ -413,7 +416,7 @@ function renderMainChart(priceData, trades, equityData, bhData) {
     };
 
     const bhDataset = {
-        label: '買進並持有 (%)', data: bhReturnData,
+        label: '買入持有 (%)', data: bhReturnData,
         borderColor: '#9ca3af', borderWidth: 2, borderDash: [5, 5],
         pointRadius: 0, tension: 0.1, fill: false,
         yAxisID: 'y1', order: 2, legendOrder: 30
@@ -453,7 +456,7 @@ function renderMainChart(priceData, trades, equityData, bhData) {
                 }
             },
             plugins: {
-                legend: { display: false }, // 關閉預設，改用自定義
+                legend: { display: false },
                 tooltip: {
                     callbacks: {
                         label: function (context) {
@@ -488,6 +491,9 @@ function renderMainChart(priceData, trades, equityData, bhData) {
     updateCustomLegend(mainChart);
 }
 
+// ---------------------------------------------------------
+//  圖例
+// ---------------------------------------------------------
 function updateCustomLegend(chart) {
     let legendDiv = document.getElementById('js-legend-container');
     if (!legendDiv) {
@@ -581,6 +587,115 @@ function updateCustomLegend(chart) {
         });
 
         legendDiv.appendChild(groupEl);
+    });
+}
+
+// ---------------------------------------------------------
+//  水下曲線圖 (Drawdown Chart)
+// ---------------------------------------------------------
+function renderDrawdownChart(data) {
+    const ctx = document.getElementById('drawdownChart').getContext('2d');
+    if (drawdownChart) drawdownChart.destroy();
+
+    const isDark = document.documentElement.classList.contains('dark');
+    const gridColor = isDark ? '#334155' : '#e5e7eb';
+    const textColor = isDark ? '#94a3b8' : '#64748b';
+
+    const labels = data.map(d => d.time);
+    const values = data.map(d => d.value);
+
+    drawdownChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: '回撤幅度 (%)',
+                data: values,
+                borderColor: '#ef4444',
+                backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                borderWidth: 1, pointRadius: 0, fill: true, tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            scales: {
+                x: { ticks: { maxTicksLimit: 12, color: textColor }, grid: { color: gridColor, display: false } },
+                y: {
+                    title: { display: true, text: '回撤 (%)', color: textColor },
+                    ticks: { color: textColor, callback: (v) => v + '%' },
+                    grid: { color: gridColor },
+                    suggestedMin: -30, max: 0
+                }
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: { label: (ctx) => `回撤: ${ctx.parsed.y.toFixed(2)}%` } }
+            }
+        }
+    });
+}
+
+// ---------------------------------------------------------
+//  損益分佈直方圖 (PnL Histogram)
+// ---------------------------------------------------------
+let pnlChart = null;
+function renderPnLHistogram(data) {
+    const ctx = document.getElementById('pnlHistogramChart');
+    if (!ctx) return; // 保護機制
+    if (pnlChart) pnlChart.destroy();
+
+    const isDark = document.documentElement.classList.contains('dark');
+    const gridColor = isDark ? '#334155' : '#e5e7eb';
+    const textColor = isDark ? '#94a3b8' : '#64748b';
+
+    // 如果沒有交易資料
+    if (!data || data.values.length === 0) {
+        // 可以選擇顯示「無資料」文字，這裡簡單處理直接不畫
+        return;
+    }
+
+    pnlChart = new Chart(ctx.getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: data.labels,
+            datasets: [{
+                label: '交易次數',
+                data: data.values,
+                backgroundColor: data.colors,
+                borderRadius: 4, // 圓角條圖
+                borderSkipped: false
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    ticks: {
+                        color: textColor,
+                        maxRotation: 45,
+                        minRotation: 0,
+                        font: { size: 10 }
+                    },
+                    grid: { display: false }
+                },
+                y: {
+                    title: { display: true, text: '次數', color: textColor },
+                    ticks: { color: textColor, stepSize: 1 }, // 次數一定是整數
+                    grid: { color: gridColor }
+                }
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        title: (items) => `報酬區間: ${items[0].label}`,
+                        label: (ctx) => `${ctx.parsed.y} 筆交易`
+                    }
+                }
+            }
+        }
     });
 }
 
@@ -684,11 +799,8 @@ function renderTradeList(trades) {
         const pnlColor = isProfit ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400';
         const sign = isProfit ? '+' : '';
 
-        // --- 顯示後端傳來的說明文字 ---
-        // 如果後端有傳 entry_note 就顯示，沒有就留空
         const entryCondition = trade.entry_note ? `(${trade.entry_note})` : '';
         const exitCondition = trade.exit_note ? `(${trade.exit_note})` : '';
-        // --------------------------------------------------
 
         const html = `
         <div class="py-5 px-2 hover:bg-gray-50 dark:hover:bg-slate-700 transition duration-150">
@@ -700,7 +812,6 @@ function renderTradeList(trades) {
                         <span class="font-bold text-gray-800 dark:text-gray-200 text-lg">${trade.entry_price}</span>
                         <span class="text-xs text-gray-500 dark:text-gray-400">${trade.size} 股</span>
                     </div>
-                    <!-- 這裡顯示動態的進場理由 -->
                     <p class="text-xs text-gray-400 dark:text-gray-500 pl-1">${entryCondition}</p>
                 </div>
                 <div class="flex-1 md:text-right">
@@ -709,7 +820,6 @@ function renderTradeList(trades) {
                         <span class="px-2 py-0.5 text-[10px] font-bold bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-300 rounded">賣出</span>
                         <span class="font-bold text-gray-800 dark:text-gray-200 text-lg">${trade.exit_price}</span>
                     </div>
-                    <!-- 這裡顯示動態的出場理由 -->
                     <p class="text-xs text-gray-400 dark:text-gray-500 pr-1">${exitCondition}</p>
                 </div>
                 <div class="w-full md:w-32 text-right flex items-center justify-end">

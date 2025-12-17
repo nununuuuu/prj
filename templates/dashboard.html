@@ -61,11 +61,11 @@
             <div class="bg-gray-100 dark:bg-slate-700 p-1 rounded-lg flex text-xs font-medium">
                 <button type="button" id="tab-basic" onclick="switchMode('basic')"
                     class="flex-1 py-1.5 rounded-md shadow-sm bg-white dark:bg-slate-600 text-blue-600 dark:text-blue-400 transition-all">
-                    基礎模式
+                    預設模式
                 </button>
                 <button type="button" id="tab-advanced" onclick="switchMode('advanced')"
                     class="flex-1 py-1.5 rounded-md text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-all">
-                    進階模式
+                    自定義模式
                 </button>
             </div>
 
@@ -342,6 +342,34 @@
                     <canvas id="mainChart" class="hidden"></canvas>
                 </div>
             </div>
+            <!-- 水下曲線 + 損益分佈 -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+
+                <!-- 左邊：水下曲線 -->
+                <div
+                    class="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700">
+                    <div class="mb-4">
+                        <h3 class="font-bold text-gray-800 dark:text-white text-lg">回撤風險</h3>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">資產從高點回落的幅度。</p>
+                    </div>
+                    <div class="relative w-full h-[200px]">
+                        <canvas id="drawdownChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- 右邊：損益分佈 -->
+                <div
+                    class="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700">
+                    <div class="mb-4">
+                        <h3 class="font-bold text-gray-800 dark:text-white text-lg">損益分佈</h3>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">每筆交易報酬率的分佈頻率。</p>
+                    </div>
+                    <div class="relative w-full h-[200px]">
+                        <canvas id="pnlHistogramChart"></canvas>
+                    </div>
+                </div>
+
+            </div>
 
             <!-- 4. 詳細數據區塊 -->
             <div
@@ -420,6 +448,11 @@
                                         <td class="p-3 text-gray-600 dark:text-gray-300">勝率</td>
                                         <td class="p-3 font-bold text-right dark:text-gray-200" id="tbl_win_rate">--%
                                         </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="p-3 text-gray-600 dark:text-gray-300">獲利因子 (總獲利/總虧損)</td>
+                                        <td class="p-3 font-bold text-right dark:text-gray-200" id="tbl_profit_factor">
+                                            --</td>
                                     </tr>
                                     <tr>
                                         <td class="p-3 text-gray-600 dark:text-gray-300">平均盈虧</td>

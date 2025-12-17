@@ -14,7 +14,7 @@ import numpy as np
 import math
 import os
 
-# --- 加強相容性 ---
+# --- 相容性補丁 ---
 if not hasattr(pd.Series, 'iteritems'):
     pd.Series.iteritems = pd.Series.items
 if not hasattr(np, 'float'):
@@ -93,7 +93,6 @@ async def get_yfinance_data(ticker: str, start: str, end: str):
 def read_root(request: Request):
     return templates.TemplateResponse("dashboard.html", {"request": request})
 
-# 輔助：根據策略設定嘗試抓取數值字串
 def get_indicator_note(strategy, strat_name, strat_params, idx):
     if not strat_name: return ""
     try:
@@ -113,14 +112,12 @@ def get_indicator_note(strategy, strat_name, strat_params, idx):
             return f"RSI({p}):{v}"
             
         elif 'MACD' in strat_name:
-            # MACD 比較特別，回傳的是 tuple (macd, sig)
             p_f = int(strat_params.get('fast', 12))
             p_s = int(strat_params.get('slow', 26))
             p_sig = int(strat_params.get('signal', 9))
             key = f"MACD_{p_f}_{p_s}_{p_sig}"
             if hasattr(strategy, key):
                 macd_data = getattr(strategy, key)
-                # macd_data 是 (array, array)
                 m_val = safe_num(macd_data[0][idx]) if len(macd_data[0]) > idx else 0
                 s_val = safe_num(macd_data[1][idx]) if len(macd_data[1]) > idx else 0
                 return f"MACD:{m_val} / Sig:{s_val}"
@@ -159,7 +156,6 @@ async def run_backtest(params: BacktestRequest):
     if len(df) < min_bars:
         raise HTTPException(status_code=400, detail=f"數據不足 {min_bars} 筆")
 
-    # trade_on_close=False (預設隔日開盤成交)
     bt = Backtest(
         df, 
         UniversalStrategy, 
@@ -171,7 +167,7 @@ async def run_backtest(params: BacktestRequest):
         'mode': params.strategy_mode,
         'sl_pct': params.stop_loss_pct,
         'tp_pct': params.take_profit_pct,
-        'trailing_stop_pct': params.trailing_stop_pct
+        'trailing_stop_pct': params.trailing_stop_pct 
     }
 
     if params.strategy_mode == 'basic':
@@ -201,9 +197,37 @@ async def run_backtest(params: BacktestRequest):
     
     equity_curve = stats._equity_curve
     trades_df = stats._trades
-    winning_trades = len(trades_df[trades_df['PnL'] > 0]) if not trades_df.empty else 0
     strategy = stats._strategy
     
+    # 計算獲利交易次數
+    winning_trades = len(trades_df[trades_df['PnL'] > 0]) if not trades_df.empty else 0
+
+    # 計算水下曲線
+    drawdown_list = []
+    if not equity_curve.empty:
+        equity_series = equity_curve['Equity']
+        running_max = equity_series.cummax()
+        drawdown_series = (equity_series - running_max) / running_max * 100
+        drawdown_list = [{"time": t.strftime("%Y-%m-%d"), "value": safe_num(v)} for t, v in zip(drawdown_series.index, drawdown_series)]
+
+    # 計算損益分佈直方圖 (PnL Histogram)
+    pnl_hist_data = {"labels": [], "values": [], "colors": []}
+    if not trades_df.empty:
+        returns = trades_df['ReturnPct'] * 100
+        returns = returns.replace([np.inf, -np.inf], np.nan).dropna()
+        if len(returns) > 0:
+            counts, bin_edges = np.histogram(returns, bins='auto')
+            for i in range(len(counts)):
+                lower = round(bin_edges[i], 1)
+                upper = round(bin_edges[i+1], 1)
+                label = f"{lower}% ~ {upper}%"
+                center = (lower + upper) / 2
+                color = "#10b981" if center >= 0 else "#ef4444"
+                pnl_hist_data["labels"].append(label)
+                pnl_hist_data["values"].append(int(counts[i]))
+                pnl_hist_data["colors"].append(color)
+
+    # 準備 B&H 曲線
     bh_list = []
     if len(df) > 0:
         first = df['Close'].iloc[0]
@@ -224,51 +248,35 @@ async def run_backtest(params: BacktestRequest):
         for i, row in trades_df.iterrows():
             e_idx, x_idx = int(row['EntryBar']), int(row['ExitBar'])
             
-            # --- 動態生成交易說明文字 ---
             entry_note = ""
             exit_note = ""
 
             if params.strategy_mode == 'basic':
-                # Basic Mode: 固定抓 SMA 和 RSI
                 try:
-                    # 1. 抓取【進場】時的指標數值
                     e_rsi = safe_num(strategy.rsi_entry[e_idx]) if len(strategy.rsi_entry) > e_idx else 0
                     e_sma1 = safe_num(strategy.sma1[e_idx]) if len(strategy.sma1) > e_idx else 0
                     e_sma2 = safe_num(strategy.sma2[e_idx]) if len(strategy.sma2) > e_idx else 0
                     
-                    # 2. 抓取【出場】時的指標數值
                     x_rsi = safe_num(strategy.rsi_exit[x_idx]) if len(strategy.rsi_exit) > x_idx else 0
                     x_sma1 = safe_num(strategy.sma1[x_idx]) if len(strategy.sma1) > x_idx else 0
                     x_sma2 = safe_num(strategy.sma2[x_idx]) if len(strategy.sma2) > x_idx else 0
                     
-                    # 3. 組合顯示字串 (兩邊都顯示 SMA)
                     entry_note = f"SMA: {e_sma1}/{e_sma2} | RSI: {e_rsi}"
                     exit_note = f"SMA: {x_sma1}/{x_sma2} | RSI: {x_rsi}"
-                except: 
-                    pass
+                except: pass
             else:
-                # Advanced Mode: 抓取所有已啟用的策略數值，並用 " | " 串接
-                
-                # 1. 處理進場 (Entry)
                 e_notes_list = []
-                # 策略 1
                 n1 = get_indicator_note(strategy, params.entry_strategy_1, params.entry_params_1, e_idx)
                 if n1: e_notes_list.append(n1)
-                # 策略 2
                 n2 = get_indicator_note(strategy, params.entry_strategy_2, params.entry_params_2, e_idx)
                 if n2: e_notes_list.append(n2)
-                
                 entry_note = " | ".join(e_notes_list)
 
-                # 2. 處理出場 (Exit)
                 x_notes_list = []
-                # 策略 1
                 n1 = get_indicator_note(strategy, params.exit_strategy_1, params.exit_params_1, x_idx)
                 if n1: x_notes_list.append(n1)
-                # 策略 2
                 n2 = get_indicator_note(strategy, params.exit_strategy_2, params.exit_params_2, x_idx)
                 if n2: x_notes_list.append(n2)
-                
                 exit_note = " | ".join(x_notes_list)
 
             detailed_trades.append({
@@ -282,7 +290,6 @@ async def run_backtest(params: BacktestRequest):
                 "entry_note": entry_note, 
                 "exit_note": exit_note
             })
-            
 
             chart_trades.append({"time": row['EntryTime'].strftime("%Y-%m-%d"), "price": safe_num(row['EntryPrice']), "type": "buy"})
             chart_trades.append({"time": row['ExitTime'].strftime("%Y-%m-%d"), "price": safe_num(row['ExitPrice']), "type": "sell"})
@@ -311,12 +318,18 @@ async def run_backtest(params: BacktestRequest):
         "buy_and_hold_return": safe_num(stats["Buy & Hold Return [%]"]),
         "win_rate": safe_num(stats["Win Rate [%]"]),
         "winning_trades": winning_trades,
+        "profit_factor": safe_num(stats.get("Profit Factor", 0)),
         "total_trades": int(stats["# Trades"]),
         "avg_pnl": safe_num(trades_df['PnL'].mean(), 0) if not trades_df.empty else 0,
         "max_consecutive_loss": max_consecutive_loss,
         "max_drawdown": safe_num(stats["Max. Drawdown [%]"]),
         "sharpe_ratio": safe_num(stats["Sharpe Ratio"]),
-        "equity_curve": equity_list, "price_data": price_list,
-        "trades": chart_trades, "heatmap_data": heatmap_data,
-        "buy_and_hold_curve": bh_list, "detailed_trades": detailed_trades
+        "equity_curve": equity_list,
+        "drawdown_curve": drawdown_list,
+        "pnl_histogram": pnl_hist_data,  
+        "price_data": price_list,
+        "trades": chart_trades,
+        "heatmap_data": heatmap_data,
+        "buy_and_hold_curve": bh_list,
+        "detailed_trades": detailed_trades
     }

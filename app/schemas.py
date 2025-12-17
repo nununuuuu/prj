@@ -53,8 +53,12 @@ class BacktestResponse(BaseModel):
     max_consecutive_loss: int
     max_drawdown: float
     sharpe_ratio: float
-    
+    profit_factor: float
+    profit_factor: float
+
+    pnl_histogram: Dict[str, List] 
     equity_curve: List[Dict]
+    drawdown_curve: List[Dict]
     price_data: List[Dict]
     trades: List[Dict]
     detailed_trades: Optional[List[Dict]] = [] 
