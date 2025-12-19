@@ -1,10 +1,10 @@
 // static/js/main.js
 
 let mainChart = null;
-let drawdownChart = null; // 水下曲線圖表
+let drawdownChart = null;
 let lockedDatasets = [];
 let lastChartData = null;
-let currentMode = 'basic'; // 'basic' or 'advanced'
+let currentMode = 'basic';
 
 // 定義策略選項與參數
 const STRATEGY_DEFINITIONS = {
@@ -14,7 +14,9 @@ const STRATEGY_DEFINITIONS = {
         'RSI_OVERSOLD': { name: 'RSI 超賣', params: [{ k: 'period', l: '週期', v: 14 }, { k: 'threshold', l: '閾值 <', v: 30 }] },
         'MACD_GOLDEN': { name: 'MACD 黃金交叉', params: [{ k: 'fast', l: '快線', v: 12 }, { k: 'slow', l: '慢線', v: 26 }, { k: 'signal', l: 'Signal', v: 9 }] },
         'KD_GOLDEN': { name: 'KD 黃金交叉', params: [{ k: 'period', l: '週期', v: 9 }, { k: 'threshold', l: 'D值 <', v: 20 }] },
-        'BB_BREAK': { name: '布林通道突破', params: [{ k: 'period', l: '週期', v: 20 }, { k: 'std', l: '標準差', v: 2.0 }] }
+        'BB_BREAK': { name: '布林通道突破', params: [{ k: 'period', l: '週期', v: 20 }, { k: 'std', l: '標準差', v: 2.0 }] },
+        'WILLR_OVERSOLD': { name: '威廉指標超賣', params: [{ k: 'period', l: '週期', v: 14 }, { k: 'threshold', l: '閾值 <', v: -80 }] },
+        'TURTLE_ENTRY': { name: '海龜突破 (突破N日高)', params: [{ k: 'period', l: 'N天數', v: 20 }] }
     },
     // 出場
     'EXIT': {
@@ -22,9 +24,12 @@ const STRATEGY_DEFINITIONS = {
         'RSI_OVERBOUGHT': { name: 'RSI 超買', params: [{ k: 'period', l: '週期', v: 14 }, { k: 'threshold', l: '閾值 >', v: 70 }] },
         'MACD_DEATH': { name: 'MACD 死亡交叉', params: [{ k: 'fast', l: '快線', v: 12 }, { k: 'slow', l: '慢線', v: 26 }, { k: 'signal', l: 'Signal', v: 9 }] },
         'KD_DEATH': { name: 'KD 死亡交叉', params: [{ k: 'period', l: '週期', v: 9 }, { k: 'threshold', l: 'D值 >', v: 80 }] },
-        'BB_REVERSE': { name: '布林通道反轉', params: [{ k: 'period', l: '週期', v: 20 }, { k: 'std', l: '標準差', v: 2.0 }] }
+        'BB_REVERSE': { name: '布林通道反轉', params: [{ k: 'period', l: '週期', v: 20 }, { k: 'std', l: '標準差', v: 2.0 }] },
+        'WILLR_OVERBOUGHT': { name: '威廉指標超買', params: [{ k: 'period', l: '週期', v: 14 }, { k: 'threshold', l: '閾值 >', v: -20 }] },
+        'TURTLE_EXIT': { name: '海龜停損 (跌破N日低)', params: [{ k: 'period', l: 'N天數', v: 10 }] }
     }
 };
+
 
 document.addEventListener('DOMContentLoaded', function () {
     console.log("System Ready: Smart Investment Dashboard v4.0 (Final)");
@@ -310,9 +315,9 @@ function updateDashboard(data) {
     if (pfEl) {
         pfEl.innerText = data.profit_factor;
         pfEl.className = "p-3 font-bold text-right " +
-            (data.profit_factor >= 1.5 ? "text-green-600 dark:text-green-400" : // 大賺: 綠色
-                (data.profit_factor < 1 ? "text-red-500 dark:text-red-400" :      // 賠錢: 紅色
-                    "text-gray-900 dark:text-white"));                                 // 普通: 黑色 (深色模式白)
+            (data.profit_factor >= 1.5 ? "text-green-600 dark:text-green-400" :
+                (data.profit_factor < 1 ? "text-red-500 dark:text-red-400" :
+                    "text-gray-900 dark:text-white"));
     }
 
     const pnlEl = document.getElementById('res_avg_pnl');
@@ -334,7 +339,7 @@ function updateDashboard(data) {
         trades: data.trades,
         equityData: data.equity_curve,
         bhData: data.buy_and_hold_curve,
-        drawdownCurve: data.drawdown_curve, // 保存水下曲線資料
+        drawdownCurve: data.drawdown_curve,
         pnlData: data.pnl_histogram
     };
 
@@ -401,7 +406,7 @@ function renderMainChart(priceData, trades, equityData, bhData) {
 
     const strategyDataset = {
         label: '當前策略 (%)', data: strategyReturnData,
-        borderColor: '#106df0ff', // Indigo-500
+        borderColor: '#106df0ff',
         backgroundColor: 'rgba(99, 102, 241, 0.1)',
         borderWidth: 4, pointRadius: 0, tension: 0.1, fill: true,
         yAxisID: 'y1', order: 1, legendOrder: 10
@@ -559,9 +564,9 @@ function updateCustomLegend(chart) {
                 icon.style.height = '0';
                 icon.style.borderLeft = '5px solid transparent';
                 icon.style.borderRight = '5px solid transparent';
-                if (item.rotation === 180) { // Down
+                if (item.rotation === 180) {
                     icon.style.borderTop = `6px solid ${item.color}`;
-                } else { // Up
+                } else {
                     icon.style.borderBottom = `6px solid ${item.color}`;
                 }
             } else {
@@ -650,16 +655,14 @@ function renderDrawdownChart(data) {
 let pnlChart = null;
 function renderPnLHistogram(data) {
     const ctx = document.getElementById('pnlHistogramChart');
-    if (!ctx) return; // 保護機制
+    if (!ctx) return;
     if (pnlChart) pnlChart.destroy();
 
     const isDark = document.documentElement.classList.contains('dark');
     const gridColor = isDark ? '#334155' : '#e5e7eb';
     const textColor = isDark ? '#94a3b8' : '#64748b';
 
-    // 如果沒有交易資料
     if (!data || data.values.length === 0) {
-        // 可以選擇顯示「無資料」文字，這裡簡單處理直接不畫
         return;
     }
 
@@ -671,7 +674,7 @@ function renderPnLHistogram(data) {
                 label: '交易次數',
                 data: data.values,
                 backgroundColor: data.colors,
-                borderRadius: 4, // 圓角條圖
+                borderRadius: 4,
                 borderSkipped: false
             }]
         },
@@ -688,7 +691,7 @@ function renderPnLHistogram(data) {
                 },
                 y: {
                     title: { display: true, text: '次數', color: textColor, font: { weight: 'bold' } },
-                    ticks: { color: textColor, stepSize: 1, font: { size: 12 } }, // 次數一定是整數
+                    ticks: { color: textColor, stepSize: 1, font: { size: 12 } },
                     grid: { color: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)', drawBorder: false }
                 }
             },

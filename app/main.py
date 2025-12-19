@@ -141,6 +141,27 @@ def get_indicator_note(strategy, strat_name, strat_params, idx):
                 l_val = safe_num(bb_data[1][idx]) if len(bb_data[1]) > idx else 0
                 return f"Upper:{u_val} / Lower:{l_val}"
 
+        elif 'WILLR' in strat_name:
+            p = int(strat_params.get('period', 14))
+            val = getattr(strategy, f"WILLR_{p}", [])
+            v = safe_num(val[idx]) if len(val) > idx else 0
+            return f"W%R({p}):{v}"
+
+        elif 'TURTLE' in strat_name:
+            p = int(strat_params.get('period', 20))
+            # 判斷是進場(High)還是出場(Low)
+            if 'ENTRY' in strat_name:
+                key = f"DONCHIAN_HIGH_{p}"
+                prefix = "High"
+            else:
+                key = f"DONCHIAN_LOW_{p}"
+                prefix = "Low"
+            
+            if hasattr(strategy, key):
+                val = getattr(strategy, key)
+                v = safe_num(val[idx]) if len(val) > idx else 0
+                return f"{prefix}({p}):{v}"
+
     except Exception:
         return ""
     return strat_name
