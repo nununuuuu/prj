@@ -22,9 +22,8 @@
 5. [策略系統](#-策略系統)
 6. [功能特色](#-功能特色)
 7. [使用指南](#-使用指南)
-8. [技術細節](#-技術細節)
-9. [心得總結](#-心得總結)
-10. [參考資源](#-參考資源)
+8. [心得總結](#-心得總結)
+9. [參考資源](#-參考資源)
 
 ---
 
@@ -41,7 +40,7 @@ uv sync
 uv run python run.py
 ```
 
-執行後會自動開啟瀏覽器，前往 `http://127.0.0.1:8000` 即可使用！
+執行後會自動開啟瀏覽器，前往 `http://127.0.0.1:8000`
 
 ---
 
@@ -66,7 +65,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 ### 安裝專案依賴
 
 ```bash
-# 使用 uv (推薦)
+# 使用 uv
 uv sync
 ```
 
@@ -129,30 +128,14 @@ prj/
 ├── app/                      # 後端應用程式
 │   ├── __init__.py           # 套件初始化
 │   ├── main.py               # FastAPI 主程式
-│   │                          - API 路由定義
-│   │                          - 數據下載與清洗
-│   │                          - 回測執行邏輯
-│   │                          - 績效指標計算
 │   ├── strategy.py           # 通用策略系統
-│   │                          - UniversalStrategy 類別
-│   │                          - 技術指標函數庫 (SMA, RSI, MACD, KD, BBANDS)
-│   │                          - 彈性訊號組合邏輯
 │   └── schemas.py            # Pydantic 資料模型
-│                              - BacktestRequest (請求參數)
-│                              - BacktestResponse (回測結果)
 ├── templates/                # Jinja2 前端模板
 │   ├── base.html             # 基礎模板 (CSS 設計系統)
 │   └── dashboard.html        # 儀表板主頁面
-│                              - 雙模式切換 (基礎/進階)
-│                              - 參數表單
-│                              - 結果展示區
-│                              - Chart.js 圖表
 ├── static/                   # 靜態資源
 │   └── js/
 │       └── main.js           # 前端邏輯
-│                              - 表單提交與驗證
-│                              - 圖表繪製 (資金曲線、熱力圖)
-│                              - 數據格式化
 ├── data/                     # 歷史數據 (自動生成)
 │   └── *.csv                 # 從 Yahoo Finance 下載的股票數據
 ├── run.py                    # 快速啟動腳本
@@ -161,24 +144,6 @@ prj/
 ├── finalprj.md               # 期末專案需求說明
 ├── strategy.md               # 策略詳細說明文件
 └── README.md                 # 本說明文件
-```
-
-### 資料流程
-
-```
-使用者輸入參數 (dashboard.html)
-    ↓
-POST /api/backtest (main.py)
-    ↓
-下載/讀取數據 (yfinance + 快取)
-    ↓
-執行回測 (Backtesting.py + UniversalStrategy)
-    ↓
-計算績效指標 (總報酬、夏普比率、最大回撤等)
-    ↓
-回傳 JSON 結果 (BacktestResponse)
-    ↓
-前端繪製圖表 (Chart.js)
 ```
 
 ---
@@ -223,58 +188,44 @@ POST /api/backtest (main.py)
 - **MACD**: 指數平滑異同移動平均線
 - **KD**: 隨機指標
 - **BBANDS**: 布林通道
+- **WILLR**: 威廉指標
+- **Donchian**: 海龜通道 (Donchian Channel)
 
-**訊號組合**:
-- 進場: 最多 2 組條件 (AND 邏輯)
-- 出場: 最多 2 組條件 (OR 邏輯)
-
-**範例組合**:
-```
-進場: MACD 黃金交叉 AND KD < 20 (超賣)
-出場: MACD 死亡交叉 OR 價格突破布林通道上軌
-```
 
 ### 技術指標說明
 
 #### 1. SMA (Simple Moving Average)
-```python
-SMA(values, n)
-```
 - **用途**: 平滑價格波動，判斷趨勢方向
 - **常用週期**: 5, 10, 20, 60, 120, 240 日
 
 #### 2. RSI (Relative Strength Index)
-```python
-RSI(values, n=14)
-```
 - **演算法**: Wilder's Smoothing (與 TradingView 一致)
 - **範圍**: 0-100
 - **超買**: > 70
 - **超賣**: < 30
 
 #### 3. MACD (Moving Average Convergence Divergence)
-```python
-MACD(values, fast=12, slow=26, signal=9)
-```
 - **回傳**: (DIF, DEM) 快線與訊號線
 - **黃金交叉**: DIF 由下往上突破 DEM
 - **死亡交叉**: DIF 由上往下跌破 DEM
 
 #### 4. KD (Stochastic Oscillator)
-```python
-KD(high, low, close, n=9)
-```
 - **回傳**: (K, D) 快線與慢線
 - **範圍**: 0-100
 - **超買**: > 80
 - **超賣**: < 20
 
 #### 5. BBANDS (Bollinger Bands)
-```python
-BBANDS(values, n=20, std=2.0)
-```
 - **回傳**: (上軌, 下軌)
 - **用途**: 判斷價格波動區間與突破訊號
+
+#### 6. WILLR (Williams %R)
+- **範圍**: -100 到 0
+- **超買**: > -20
+- **超賣**: < -80
+
+#### 7. DONCHIAN (Donchian Channel)
+- **用途**: 海龜法則，判斷 N 日區間突破
 
 ---
 
@@ -283,7 +234,8 @@ BBANDS(values, n=20, std=2.0)
 ### 核心功能
 
 - **雙模式策略系統**: 基礎模式 + 進階模式
-- **5 種技術指標**: SMA, RSI, MACD, KD, BBANDS
+- **7 種技術指標**: SMA, RSI, MACD, KD, BBANDS, WILLR, Donchian (Turtle)
+- **多功能停損停利**: 除固定百分比外，支援 **追蹤停損 (Trailing Stop)**
 - **彈性訊號組合**: 自訂進出場條件
 - **即時數據下載**: 自動從 Yahoo Finance 抓取數據
 - **智慧快取機制**: 避免重複下載相同數據
@@ -291,47 +243,6 @@ BBANDS(values, n=20, std=2.0)
 - **多維度視覺化**: 資金曲線、交易明細、月度熱力圖
 - **買入持有比較**: 同時顯示策略 vs 基準表現
 
-### 技術亮點
-
-#### 1. 非同步數據處理
-```python
-async def get_yfinance_data(ticker: str, start: str, end: str):
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(None, _download_from_yahoo, ticker, start, end)
-```
-- 使用 `asyncio` + `ThreadPoolExecutor` 避免阻塞
-- 支援高併發請求
-
-#### 2. 數據快取
-```python
-@lru_cache(maxsize=128)
-def _download_from_yahoo(ticker: str, start: str, end: str):
-    # 快取已下載的數據
-```
-- 自動快取最近 128 筆查詢
-- 大幅提升重複查詢速度
-- 使用 `@lru_cache` 避免重複下載相同數據
-
-#### 3. 數據處理
-- 處理 Yahoo Finance 的多層索引
-- 移除時區資訊 (避免序列化問題)
-- 填補缺失值 (forward fill + backward fill)
-- 驗證 OHLCV 格式完整性
-
-#### 4. Pydantic 資料驗證
-```python
-class BacktestRequest(BaseModel):
-    ticker: str
-    start_date: str
-    end_date: str
-    cash: float = 100000
-    # ... 自動驗證型別與範圍
-```
-- 自動驗證前端傳來的參數
-- 提供清晰的錯誤訊息
-- 確保前後端數據格式正確
-
----
 
 ## 使用指南
 
@@ -345,7 +256,7 @@ class BacktestRequest(BaseModel):
 
 | 參數 | 說明 | 範例 |
 |------|------|------|
-| 股票代碼 | Yahoo Finance 代碼 | `AAPL`, `2330.TW`, `006208` |
+| 股票代碼 | Yahoo Finance 代碼 | `AAPL`, `2330`, `006208` |
 | 開始日期 | 回測起始日 | `2020-01-01` |
 | 結束日期 | 回測結束日 | `2024-12-31` |
 | 初始資金 | 起始本金 | `100000` |
@@ -364,32 +275,11 @@ class BacktestRequest(BaseModel):
 | 出場 RSI 閾值 | 80 | RSI 高於此值就賣出 |
 | 停損百分比 | 0 | 0 表示不啟用 |
 | 停利百分比 | 0 | 0 表示不啟用 |
+| 追蹤停損百分比 | 0 | 0 表示不啟用 |
 
-#### 自定義模式參數
 
-自由組合進出場訊號，例如：
 
-**進場訊號 1**: 
-- 策略: `sma_cross`
-- 參數: `{"n1": 10, "n2": 60}`
-
-**進場訊號 2**:
-- 策略: `rsi_below`
-- 參數: `{"n": 14, "threshold": 70}`
-
-### 步驟 3: 執行回測
-
-點擊 **「執行回測」** 按鈕，系統會：
-
-1. 驗證參數格式
-2. 下載/讀取歷史數據
-3. 執行回測引擎
-4. 計算績效指標
-5. 繪製圖表
-
-通常在 2-5 秒內完成。
-
-### 步驟 4: 分析結果
+### 步驟 3: 分析結果
 
 #### 績效指標區
 
@@ -421,86 +311,12 @@ class BacktestRequest(BaseModel):
 #### 月度報酬熱力圖
 
 視覺化每個月的績效表現：
-- 🟢 綠色: 正報酬
-- 🔴 紅色: 負報酬
+- 綠色: 正報酬
+- 紅色: 負報酬
 - 顏色深淺代表幅度
 
 ---
 
-## 🔧 技術細節
-
-### API 端點
-
-#### GET /
-- **用途**: 儀表板首頁
-- **回傳**: HTML 頁面
-
-#### POST /api/backtest
-- **用途**: 執行回測
-- **請求格式**: JSON (BacktestRequest)
-- **回應格式**: JSON (BacktestResponse)
-
-**請求範例**:
-```json
-{
-  "ticker": "AAPL",
-  "start_date": "2020-01-01",
-  "end_date": "2024-12-31",
-  "cash": 100000,
-  "strategy_mode": "basic",
-  "ma_short": 10,
-  "ma_long": 60,
-  "rsi_period_entry": 14,
-  "rsi_buy_threshold": 70
-}
-```
-
-**回應範例**:
-```json
-{
-  "ticker": "AAPL",
-  "final_equity": 145230.50,
-  "total_return": 45.23,
-  "annual_return": 8.12,
-  "buy_and_hold_return": 62.80,
-  "max_drawdown": -18.30,
-  "sharpe_ratio": 0.82,
-  "win_rate": 58.33,
-  "total_trades": 24,
-  "equity_curve": [...],
-  "trades": [...]
-}
-```
-
-### 相容性處理
-
-#### Pandas 2.x 相容
-```python
-# 修復 backtesting.py 與 Pandas 2.x 的相容性問題
-if not hasattr(pd.Series, 'iteritems'):
-    pd.Series.iteritems = pd.Series.items
-```
-
-#### NumPy 數值轉換
-```python
-def safe_num(value, decimal=2):
-    """安全地將 NumPy 類型轉換為 Python 原生類型"""
-    if pd.isna(value) or np.isinf(value):
-        return 0.0
-    return round(float(value), decimal)
-```
-
-### 錯誤處理
-
-全域例外處理器：
-```python
-@app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
-    return JSONResponse(
-        status_code=500,
-        content={"detail": str(exc)}
-    )
-```
 <!-- ## 心得總結
 
 ### 專案完成過程中的發現
