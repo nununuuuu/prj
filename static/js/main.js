@@ -379,41 +379,34 @@ function renderMainChart(priceData, trades, equityData, bhData) {
     if (mainChart) mainChart.destroy();
 
     const isDark = document.documentElement.classList.contains('dark');
-    const textColor = isDark ? '#e2e8f0' : '#1f2937';
-    const gridColor = isDark ? '#334155' : '#e5e7eb';
-    const leftAxisColor = isDark ? '#94a3b8' : '#64748b';
+
+    const gridColor = isDark ? '#334155' : '#e2e8f0';
+    const axisTextColor = isDark ? '#94a3b8' : '#64748b';
+    const priceLineColor = isDark ? '#334155' : '#cbd5e1';
+    const priceAxisColor = isDark ? '#475569' : '#cbd5e1';
 
     const labels = priceData.map(d => d.time);
 
+    // 資料計算
     const initialEquity = equityData.length > 0 ? equityData[0].value : 1;
     const strategyReturnData = equityData.map(d => ((d.value - initialEquity) / initialEquity) * 100);
-
     const initialPrice = priceData.length > 0 ? priceData[0].value : 1;
     const bhReturnData = priceData.map(d => ((d.value - initialPrice) / initialPrice) * 100);
-
     const tradeMap = {};
     trades.forEach(t => { tradeMap[t.time] = { price: t.price, type: t.type }; });
+    const buyMarkers = labels.map((date, index) => { const t = tradeMap[date]; return (t && t.type === 'buy') ? strategyReturnData[index] : null; });
+    const sellMarkers = labels.map((date, index) => { const t = tradeMap[date]; return (t && t.type === 'sell') ? strategyReturnData[index] : null; });
 
-    const buyMarkers = labels.map((date, index) => {
-        const t = tradeMap[date];
-        return (t && t.type === 'buy') ? strategyReturnData[index] : null;
-    });
-
-    const sellMarkers = labels.map((date, index) => {
-        const t = tradeMap[date];
-        return (t && t.type === 'sell') ? strategyReturnData[index] : null;
-    });
-
+    // --- Datasets 設定 ---
     const strategyDataset = {
         label: '當前策略 (%)', data: strategyReturnData,
-        borderColor: '#106df0ff',
-        backgroundColor: 'rgba(99, 102, 241, 0.1)',
-        borderWidth: 4, pointRadius: 0, tension: 0.1, fill: true,
+        borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)',
+        borderWidth: 3, pointRadius: 0, tension: 0.1, fill: true,
         yAxisID: 'y1', order: 1, legendOrder: 10
     };
     const buyDataset = {
         label: '當前-買進', data: buyMarkers,
-        borderColor: '#f62323', backgroundColor: '#f62323',
+        borderColor: '#ef4444', backgroundColor: '#ef4444',
         pointStyle: 'triangle', rotation: 0, pointRadius: 6, pointHoverRadius: 8,
         type: 'scatter', yAxisID: 'y1', order: 0, legendOrder: 11
     };
@@ -423,25 +416,24 @@ function renderMainChart(priceData, trades, equityData, bhData) {
         pointStyle: 'triangle', rotation: 180, pointRadius: 6, pointHoverRadius: 8,
         type: 'scatter', yAxisID: 'y1', order: 0, legendOrder: 12
     };
-
     const bhDataset = {
         label: '買入持有 (%)', data: bhReturnData,
         borderColor: '#9ca3af', borderWidth: 2, borderDash: [5, 5],
         pointRadius: 0, tension: 0.1, fill: false,
         yAxisID: 'y1', order: 2, legendOrder: 30
     };
+
+    // --- 股價線 ---
     const priceDataset = {
         label: '股價 (Price)', data: priceData.map(d => d.value),
-        borderColor: isDark ? '#475569' : '#e2e8f0',
-        borderWidth: 1, pointRadius: 0, tension: 0.1, fill: false,
+        borderColor: priceLineColor,
+        borderWidth: 1,
+        pointRadius: 0, tension: 0.1, fill: false,
         yAxisID: 'y', order: 4, legendOrder: 31
     };
 
     let datasets = [strategyDataset, buyDataset, sellDataset, bhDataset, priceDataset];
-
-    if (lockedDatasets.length > 0) {
-        datasets.push(...lockedDatasets);
-    }
+    if (lockedDatasets.length > 0) { datasets.push(...lockedDatasets); }
 
     mainChart = new Chart(ctx, {
         type: 'line',
@@ -452,20 +444,31 @@ function renderMainChart(priceData, trades, equityData, bhData) {
             stacked: false,
             scales: {
                 x: {
-                    ticks: { maxTicksLimit: 12, color: isDark ? '#f1f5f9' : '#1e293b', font: { size: 12, weight: 'bold' } },
-                    grid: { color: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)', drawBorder: false }
+                    ticks: { maxTicksLimit: 12, color: axisTextColor, font: { size: 11 } },
+                    grid: { color: gridColor, drawBorder: false }
                 },
+
+                // --- 左軸 ---
                 y: {
                     type: 'linear', display: true, position: 'left',
-                    title: { display: true, text: '股價 (Price)', color: isDark ? '#cbd5e1' : leftAxisColor, font: { size: 13, weight: 'extrabold' } },
-                    ticks: { color: isDark ? '#cbd5e1' : leftAxisColor, font: { size: 12, weight: 'bold' } },
+                    title: {
+                        display: true, text: '股價 (Price)',
+                        color: priceAxisColor,
+                        font: { weight: 'bold' }
+                    },
+                    ticks: { color: priceAxisColor },
                     grid: { display: false }
                 },
+
                 y1: {
                     type: 'linear', display: true, position: 'right',
-                    title: { display: true, text: '累積報酬率 (%)', color: isDark ? '#cbd5e1' : leftAxisColor, font: { size: 13, weight: 'extrabold' } },
-                    ticks: { color: isDark ? '#cbd5e1' : leftAxisColor, callback: (v) => v + '%', font: { size: 12, weight: 'bold' } },
-                    grid: { color: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)', drawOnChartArea: true, drawBorder: false }
+                    title: {
+                        display: true, text: '累積報酬率 (%)',
+                        color: axisTextColor,
+                        font: { weight: 'bold' }
+                    },
+                    ticks: { color: axisTextColor, callback: (v) => v + '%' },
+                    grid: { color: gridColor, drawOnChartArea: true, drawBorder: false }
                 }
             },
             plugins: {
