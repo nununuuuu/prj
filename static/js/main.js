@@ -7,32 +7,129 @@ let lastChartData = null;
 let currentMode = 'basic';
 
 // 定義策略選項與參數
+const STATIC_INPUT_CONSTRAINTS = {
+    'ma_short': { min: 2, max: 200 },
+    'ma_long': { min: 5, max: 300 },
+    'rsi_period_entry': { min: 2, max: 50 },
+    'rsi_buy_threshold': { min: 1, max: 99 },
+    'rsi_period_exit': { min: 2, max: 50 },
+    'rsi_sell_threshold': { min: 1, max: 99 },
+    // 風控
+    'sl_pct': { min: 0, step: 0.5 },
+    'tp_pct': { min: 0, step: 0.5 },
+    'ts_pct': { min: 0, step: 0.5 }
+};
+
 const STRATEGY_DEFINITIONS = {
     // 進場
     'ENTRY': {
-        'SMA_CROSS': { name: '均線黃金交叉', params: [{ k: 'n_short', l: '短MA', v: 10 }, { k: 'n_long', l: '長MA', v: 60 }] },
-        'RSI_OVERSOLD': { name: 'RSI 超賣', params: [{ k: 'period', l: '週期', v: 14 }, { k: 'threshold', l: '閾值 <', v: 30 }] },
-        'MACD_GOLDEN': { name: 'MACD 黃金交叉', params: [{ k: 'fast', l: '快線', v: 12 }, { k: 'slow', l: '慢線', v: 26 }, { k: 'signal', l: 'Signal', v: 9 }] },
-        'KD_GOLDEN': { name: 'KD 黃金交叉', params: [{ k: 'period', l: '週期', v: 9 }, { k: 'threshold', l: 'D值 <', v: 20 }] },
-        'BB_BREAK': { name: '布林通道突破', params: [{ k: 'period', l: '週期', v: 20 }, { k: 'std', l: '標準差', v: 2.0 }] },
-        'WILLR_OVERSOLD': { name: '威廉指標超賣', params: [{ k: 'period', l: '週期', v: 14 }, { k: 'threshold', l: '閾值 <', v: -80 }] },
-        'TURTLE_ENTRY': { name: '海龜突破 (突破N日高)', params: [{ k: 'period', l: 'N天數', v: 20 }] }
+        'SMA_CROSS': {
+            name: '均線黃金交叉',
+            params: [
+                { k: 'n_short', l: '短MA', v: 10, min: 2, max: 200 },
+                { k: 'n_long', l: '長MA', v: 60, min: 5, max: 300 }
+            ]
+        },
+        'RSI_OVERSOLD': {
+            name: 'RSI 超賣',
+            params: [
+                { k: 'period', l: '週期', v: 14, min: 2, max: 50 },
+                { k: 'threshold', l: '閾值 <', v: 30, min: 1, max: 50 }
+            ]
+        },
+        'MACD_GOLDEN': {
+            name: 'MACD 黃金交叉',
+            params: [
+                { k: 'fast', l: '快線', v: 12, min: 2, max: 50 },
+                { k: 'slow', l: '慢線', v: 26, min: 5, max: 100 },
+                { k: 'signal', l: 'Signal', v: 9, min: 2, max: 50 }
+            ]
+        },
+        'KD_GOLDEN': {
+            name: 'KD 黃金交叉',
+            params: [
+                { k: 'period', l: '週期', v: 9, min: 2, max: 50 },
+                { k: 'threshold', l: 'D值 <', v: 20, min: 1, max: 50 }
+            ]
+        },
+        'BB_BREAK': {
+            name: '布林通道突破',
+            params: [
+                { k: 'period', l: '週期', v: 20, min: 5, max: 100 },
+                { k: 'std', l: '標準差', v: 2.0, min: 1.0, max: 4.0, step: 0.1 }
+            ]
+        },
+        'WILLR_OVERSOLD': {
+            name: '威廉指標超賣',
+            params: [
+                { k: 'period', l: '週期', v: 14, min: 2, max: 50 },
+                { k: 'threshold', l: '閾值 <', v: -80, min: -100, max: -50 }
+            ]
+        },
+        'TURTLE_ENTRY': {
+            name: '海龜突破 (突破N日高)',
+            params: [
+                { k: 'period', l: 'N天數', v: 20, min: 5, max: 200 }
+            ]
+        }
     },
     // 出場
     'EXIT': {
-        'SMA_DEATH': { name: '均線死亡交叉', params: [{ k: 'n_short', l: '短MA', v: 10 }, { k: 'n_long', l: '長MA', v: 60 }] },
-        'RSI_OVERBOUGHT': { name: 'RSI 超買', params: [{ k: 'period', l: '週期', v: 14 }, { k: 'threshold', l: '閾值 >', v: 70 }] },
-        'MACD_DEATH': { name: 'MACD 死亡交叉', params: [{ k: 'fast', l: '快線', v: 12 }, { k: 'slow', l: '慢線', v: 26 }, { k: 'signal', l: 'Signal', v: 9 }] },
-        'KD_DEATH': { name: 'KD 死亡交叉', params: [{ k: 'period', l: '週期', v: 9 }, { k: 'threshold', l: 'D值 >', v: 80 }] },
-        'BB_REVERSE': { name: '布林通道反轉', params: [{ k: 'period', l: '週期', v: 20 }, { k: 'std', l: '標準差', v: 2.0 }] },
-        'WILLR_OVERBOUGHT': { name: '威廉指標超買', params: [{ k: 'period', l: '週期', v: 14 }, { k: 'threshold', l: '閾值 >', v: -20 }] },
-        'TURTLE_EXIT': { name: '海龜停損 (跌破N日低)', params: [{ k: 'period', l: 'N天數', v: 10 }] }
+        'SMA_DEATH': {
+            name: '均線死亡交叉',
+            params: [
+                { k: 'n_short', l: '短MA', v: 10, min: 2, max: 200 },
+                { k: 'n_long', l: '長MA', v: 60, min: 5, max: 300 }
+            ]
+        },
+        'RSI_OVERBOUGHT': {
+            name: 'RSI 超買',
+            params: [
+                { k: 'period', l: '週期', v: 14, min: 2, max: 50 },
+                { k: 'threshold', l: '閾值 >', v: 70, min: 50, max: 99 }
+            ]
+        },
+        'MACD_DEATH': {
+            name: 'MACD 死亡交叉',
+            params: [
+                { k: 'fast', l: '快線', v: 12, min: 2, max: 50 },
+                { k: 'slow', l: '慢線', v: 26, min: 5, max: 100 },
+                { k: 'signal', l: 'Signal', v: 9, min: 2, max: 50 }
+            ]
+        },
+        'KD_DEATH': {
+            name: 'KD 死亡交叉',
+            params: [
+                { k: 'period', l: '週期', v: 9, min: 2, max: 50 },
+                { k: 'threshold', l: 'D值 >', v: 80, min: 50, max: 99 }
+            ]
+        },
+        'BB_REVERSE': {
+            name: '布林通道反轉',
+            params: [
+                { k: 'period', l: '週期', v: 20, min: 5, max: 100 },
+                { k: 'std', l: '標準差', v: 2.0, min: 1.0, max: 4.0, step: 0.1 }
+            ]
+        },
+        'WILLR_OVERBOUGHT': {
+            name: '威廉指標超買',
+            params: [
+                { k: 'period', l: '週期', v: 14, min: 2, max: 50 },
+                { k: 'threshold', l: '閾值 >', v: -20, min: -50, max: 0 }
+            ]
+        },
+        'TURTLE_EXIT': {
+            name: '海龜停損 (跌破N日低)',
+            params: [
+                { k: 'period', l: 'N天數', v: 10, min: 3, max: 100 }
+            ]
+        }
     }
 };
 
 
 document.addEventListener('DOMContentLoaded', function () {
-    console.log("System Ready: Smart Investment Dashboard v4.0 (Final)");
+    console.log("System Ready: Smart Investment Dashboard v4.1 (Basic Constraints Added)");
 
     // 日期初始化
     const formatDate = (date) => {
@@ -73,11 +170,40 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-
-    // 初始化下拉選單
+    // 初始化下拉選單 (進階模式)
     initStrategySelects();
+
+    // 初始化基礎模式的限制與提示
+    initStaticConstraints();
 });
 
+// 靜態輸入框的限制與提示
+function initStaticConstraints() {
+    for (const [id, config] of Object.entries(STATIC_INPUT_CONSTRAINTS)) {
+        const input = document.getElementById(id);
+        if (input) {
+            if (config.min !== undefined) input.min = config.min;
+            if (config.max !== undefined) input.max = config.max;
+            input.step = config.step || "1";
+
+
+            if (input.parentNode.querySelector('.range-hint')) continue;
+
+            let hintText = "";
+            if (config.min !== undefined && config.max !== undefined) {
+                hintText = `推薦參數: ${config.min}-${config.max}`;
+            }
+
+            if (hintText) {
+                const hint = document.createElement('div');
+                hint.className = "range-hint text-[10px] text-blue-500 dark:text-blue-400 font-medium mb-1 text-right";
+                hint.innerText = hintText;
+
+                input.parentNode.insertBefore(hint, input);
+            }
+        }
+    }
+}
 function initStrategySelects() {
     const fills = [
         { id: 'entry_strategy_1', type: 'ENTRY' },
@@ -153,18 +279,34 @@ function renderParams(type, index) {
     if (config && config.params) {
         config.params.forEach(p => {
             const div = document.createElement('div');
+
+            const labelRow = document.createElement('div');
+            labelRow.className = "flex flex-col mb-1";
+
             const label = document.createElement('label');
-            label.className = "block text-[10px] text-gray-500 dark:text-gray-400 mb-0.5";
+            label.className = "text-[11px] text-gray-600 dark:text-gray-400 font-bold";
             label.innerText = p.l;
+            labelRow.appendChild(label);
+
+            if (p.min !== undefined && p.max !== undefined) {
+                const hint = document.createElement('span');
+                hint.className = "text-[10px] text-blue-500 dark:text-blue-400 font-medium";
+                hint.innerText = `推薦參數: ${p.min}-${p.max}`;
+                labelRow.appendChild(hint);
+            }
+
+            div.appendChild(labelRow);
 
             const input = document.createElement('input');
             input.type = "number";
-            input.step = p.v % 1 === 0 ? "1" : "0.1";
             input.value = p.v;
-            input.className = "w-full border border-gray-200 dark:border-slate-600 rounded p-1 text-xs bg-white dark:bg-slate-700 dark:text-white param-input";
+            input.className = "w-full border border-gray-200 dark:border-slate-600 rounded p-1.5 text-xs bg-white dark:bg-slate-600 dark:text-white param-input focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors";
             input.dataset.key = p.k;
 
-            div.appendChild(label);
+            if (p.min !== undefined) input.min = p.min;
+            if (p.max !== undefined) input.max = p.max;
+            input.step = p.step || (p.v % 1 === 0 ? "1" : "0.1");
+
             div.appendChild(input);
             container.appendChild(div);
         });
