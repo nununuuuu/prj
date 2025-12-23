@@ -15,6 +15,11 @@ class BacktestRequest(BaseModel):
     # 基礎 or 進階
     strategy_mode: str = "basic" 
 
+    # --- 定期定額 ---
+    monthly_contribution_amount: float = Field(default=0.0, ge=0, description="Monthly contribution amount")
+    monthly_contribution_fee: float = Field(default=1.0, ge=0, description="Monthly contribution fixed fee")
+    monthly_contribution_days: List[int] = Field(default=[], description="Days of month to contribute (1-28)")
+
     # --- 基礎模式參數 ---
     ma_short: int = 10
     ma_long: int = 60
@@ -58,6 +63,7 @@ class BacktestResponse(BaseModel):
 
     pnl_histogram: Dict[str, List] 
     equity_curve: List[Dict]
+    roi_curve: List[Dict] # 新增 ROI 曲線 (針對定期定額正確計算)
     drawdown_curve: List[Dict]
     price_data: List[Dict]
     trades: List[Dict]

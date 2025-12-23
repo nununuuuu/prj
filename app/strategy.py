@@ -74,10 +74,21 @@ class UniversalStrategy(Strategy):
     n_rsi_exit = 14; rsi_sell_threshold = 80
     entry_config = []; exit_config = []
     sl_pct = 0.0; tp_pct = 0.0; trailing_stop_pct = 0.0
+    monthly_contribution_amount = 0.0
+    monthly_contribution_fee = 1.0
+    monthly_contribution_days = []
+    commission_rate = 0.0
 
     def init(self):
         self.price = self.data.Close
+        self.total_bars = len(self.data) # 記錄總 K 線數，用於判斷回測結束
         
+        # 定期定額輔助變數
+        self.last_month = -1
+        self.deposited_targets = set()
+        self.initial_bought = False
+        self.order_log = [] # 用於記錄定期定額的買入點位 (因 Backtesting 可能將多次買入視為單一倉位)
+
         if self.mode == "basic":
             self.sma1 = self.I(SMA, self.price, self.n1)
             self.sma2 = self.I(SMA, self.price, self.n2)
@@ -220,6 +231,77 @@ class UniversalStrategy(Strategy):
         # 使用 self.data.Close[-1] 確保獲取當前 Bar 的收盤價
         price = self.data.Close[-1]
         
+        # -----------------------------
+        # 0. 定期定額入金 (Monthly Contribution)
+        # -----------------------------
+        if self.monthly_contribution_amount > 0 and self.monthly_contribution_days:
+            current_date = self.data.index[-1]
+            current_month = current_date.month
+            current_day = current_date.day
+            
+            # 如果換月了，重置已入金的目標日
+            if current_month != self.last_month:
+                self.deposited_targets = set()
+                self.last_month = current_month
+                
+            # 檢查是否有應入金但尚未入金的日子 (遇到假日順延)
+            # 邏輯: 只要今天日期 >= 目標日，且該目標日尚未在本月執行過，就補執行
+            for target_day in self.monthly_contribution_days:
+                if current_day >= target_day and target_day not in self.deposited_targets:
+                    self._broker._cash += self.monthly_contribution_amount
+                    self.deposited_targets.add(target_day)
+                    
+                    # [Periodic Only] 如果是定期定額模式，入金後立即全額買入
+                    if self.mode == 'periodic':
+                        # 1. 扣除定額手續費 (直接從現金扣除)
+                        self._broker._cash -= self.monthly_contribution_fee
+                        
+                        # 2. 計算可用於買股的資金
+                        # (扣款金額 - 手續費) / 股價，取整數 (無條件捨去)
+                        available_for_stock = self.monthly_contribution_amount - self.monthly_contribution_fee
+                        
+                        if available_for_stock > 0:
+
+                            buy_size = int(available_for_stock / price)
+                            if buy_size > 0:
+                                self.buy(size=buy_size)
+                                # 記錄買入訊號供前端繪圖
+                                self.order_log.append({
+                                    "time": self.data.index[-1],
+                                    "type": "buy",
+                                    "price": price
+                                })
+
+        # [Periodic Only] 定期定額模式：初始資金的處理 (Day 1 of Backtest execution)
+        # 由於 Backtesting.py 會等待指標 (如 SMA 60) 計算完才開始執行 next()，
+        # 此時 len(self.data) 可能已經 > 60，故不能用 len(self.data) < 5 判斷。
+        # 改用 flag 確保只執行一次。
+        if self.mode == 'periodic' and not self.initial_bought:
+             available_cash = self._broker._cash
+             if available_cash > self.price[-1]: # Check against price
+                 # 1. 扣除定額手續費 (直接從現金扣除)
+                 if available_cash > self.monthly_contribution_fee:
+                     self._broker._cash -= self.monthly_contribution_fee
+                     available_for_stock = available_cash - self.monthly_contribution_fee
+                     
+                     buy_size = int(available_for_stock / price)
+                     if buy_size > 0:
+                         self.buy(size=buy_size)
+                         self.order_log.append({
+                             "time": self.data.index[-1],
+                             "type": "buy",
+                             "price": self.price[-1]
+                         })
+             
+             self.initial_bought = True
+            
+        # 定期定額模式不執行後續的指標出場邏輯，直接 return
+        if self.mode == 'periodic':
+            # 但在最後一根 K 線強制平倉，以產生交易紀錄供前端繪圖
+            if len(self.data) == self.total_bars:  # 檢查是否為最後一根 K 線
+                 self.position.close()
+            return
+
         # -----------------------------
         # 1. 持倉管理 (移動停損 & 出場)
         # -----------------------------

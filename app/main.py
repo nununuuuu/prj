@@ -185,18 +185,34 @@ async def run_backtest(params: BacktestRequest):
     if len(df) < min_bars:
         raise HTTPException(status_code=400, detail=f"有效數據不足 {min_bars} 筆 (含空值)")
 
+    # 計算手續費率 (Backtesting 僅支援單一費率，故取平均)
+    # 若為定期定額模式，因我們將在 Strategy 中手動扣除定額手續費，故將 Backtest 手續費設為 0
+    if params.strategy_mode == 'periodic':
+         commission_rate_for_bt = 0.0
+         commission_rate_param = 0.0 # 雖然 Strategy 內部不使用百分比費率，但保持從屬性傳遞一致性
+    else:
+         commission_rate_for_bt = ((params.buy_fee_pct + params.sell_fee_pct)/2)/100
+         commission_rate_param = commission_rate_for_bt
+
     bt = Backtest(
         df, 
         UniversalStrategy, 
         cash=params.cash, 
-        commission=((params.buy_fee_pct + params.sell_fee_pct)/2)/100
+        commission=commission_rate_for_bt,
+        exclusive_orders=True if params.strategy_mode != 'periodic' else False,
+        trade_on_close=True if params.strategy_mode == 'periodic' else False, # 定期定額模式: 當天收盤價成交 (Day N)；其他模式: 隔日開盤成交 (Day N+1)
+        margin=0.05 if params.strategy_mode == 'periodic' else 1.0 # 定期定額給予極寬鬆的保證金要求 (20x槓桿)，徹底避免因手續費或計算誤差導致的強制平倉
     )
     
     strat_kwargs = {
         'mode': params.strategy_mode,
         'sl_pct': params.stop_loss_pct,
         'tp_pct': params.take_profit_pct,
-        'trailing_stop_pct': params.trailing_stop_pct 
+        'trailing_stop_pct': params.trailing_stop_pct,
+        'monthly_contribution_amount': params.monthly_contribution_amount,
+        'monthly_contribution_fee': params.monthly_contribution_fee, # New param
+        'monthly_contribution_days': params.monthly_contribution_days,
+        'commission_rate': commission_rate_param 
     }
 
     if params.strategy_mode == 'basic':
@@ -208,7 +224,7 @@ async def run_backtest(params: BacktestRequest):
             'n_rsi_exit': params.rsi_period_exit,
             'rsi_sell_threshold': params.rsi_sell_threshold
         })
-    else:
+    elif params.strategy_mode == 'advanced':
         entry_conf = []
         if params.entry_strategy_1: entry_conf.append({'type': params.entry_strategy_1, 'params': params.entry_params_1})
         if params.entry_strategy_2: entry_conf.append({'type': params.entry_strategy_2, 'params': params.entry_params_2})
@@ -221,13 +237,75 @@ async def run_backtest(params: BacktestRequest):
             'entry_config': entry_conf,
             'exit_config': exit_conf
         })
+    # periodic mode doesn't need extra kwargs except contribution
 
+
+    
     stats = bt.run(**strat_kwargs)
+
+    # --- 修正報酬率計算 (針對定期定額) & 產生 ROI 曲線 ---
+    invested_series = []
+    current_invested = params.cash
+    
+    if params.monthly_contribution_amount > 0 and params.monthly_contribution_days:
+        last_m = -1
+        dep_set = set()
+        for ts in df.index:
+            m = ts.month
+            d = ts.day
+            if m != last_m:
+                dep_set = set()
+                last_m = m
+            
+            for t_day in params.monthly_contribution_days:
+                if d >= t_day and t_day not in dep_set:
+                    current_invested += params.monthly_contribution_amount
+                    dep_set.add(t_day)
+            
+            invested_series.append(current_invested)
+    else:
+        invested_series = [params.cash] * len(df)
+    
+    total_invested = invested_series[-1] if invested_series else params.cash
+    final_equity = stats["Equity Final [$]"]
+    
+    # 重新計算總報酬率
+    adjusted_return = ((final_equity - total_invested) / total_invested) * 100
     
     equity_curve = stats._equity_curve
+
+    # 準備 ROI 曲線數據 (時間序列)
+    roi_list = []
+    if not equity_curve.empty and len(equity_curve) == len(invested_series):
+        # 確保長度對齊 (Backtesting有時會alignment，但通常這裡是一致的)
+        roi_vals = (equity_curve['Equity'] - invested_series) / invested_series * 100
+        roi_list = [{"time": t.strftime("%Y-%m-%d"), "value": safe_num(v)} for t, v in zip(equity_curve.index, roi_vals)]
+    else:
+        # Fallback (雖不應發生)
+        roi_list = [{"time": t.strftime("%Y-%m-%d"), "value": safe_num((v - params.cash)/params.cash*100)} for t, v in zip(equity_curve.index, equity_curve['Equity'])]
+
+    equity_list = [{"time": t.strftime("%Y-%m-%d"), "value": safe_num(v)} for t, v in zip(equity_curve.index, equity_curve['Equity'])]
+    
+    # B&H Logic...
     trades_df = stats._trades
     strategy = stats._strategy
     
+    # ---------------------------------------------------
+    # [Periordic Mode Fix]
+    # 定期定額模式下，因不斷加倉未平倉，Backtesting 可能不會在 _trades 記錄每次買入。
+    # 故我們從 Strategy.order_log 提取記錄，並合併顯示。
+    # ---------------------------------------------------
+    extra_trades = []
+    if params.strategy_mode == 'periodic' and hasattr(strategy, 'order_log'):
+        for log in strategy.order_log:
+            extra_trades.append({
+                "time": log['time'].strftime("%Y-%m-%d"),
+                "type": "buy",
+                "price": log['price'],
+                "size": 0, # Frontend doesn't strictly need size for markers
+                "pnl": 0
+            })
+            
     # 計算獲利交易次數
     winning_trades = len(trades_df[trades_df['PnL'] > 0]) if not trades_df.empty else 0
 
@@ -293,6 +371,11 @@ async def run_backtest(params: BacktestRequest):
                     entry_note = f"SMA: {e_sma1}/{e_sma2} | RSI: {e_rsi}"
                     exit_note = f"SMA: {x_sma1}/{x_sma2} | RSI: {x_rsi}"
                 except: pass
+            
+            elif params.strategy_mode == 'periodic':
+                entry_note = "定期定額買入"
+                exit_note = "期末結算" if x_idx >= len(df)-2 else "定期定額" 
+
             else:
                 e_notes_list = []
                 n1 = get_indicator_note(strategy, params.entry_strategy_1, params.entry_params_1, e_idx)
@@ -307,6 +390,7 @@ async def run_backtest(params: BacktestRequest):
                 n2 = get_indicator_note(strategy, params.exit_strategy_2, params.exit_params_2, x_idx)
                 if n2: x_notes_list.append(n2)
                 exit_note = " | ".join(x_notes_list)
+
 
             detailed_trades.append({
                 "entry_date": row['EntryTime'].strftime("%Y-%m-%d"),
@@ -329,6 +413,29 @@ async def run_backtest(params: BacktestRequest):
             else:
                 current_loss = 0
 
+    # --- MERGE EXTRA TRADES (Periodic) ---
+    if extra_trades:
+        # 僅加入買入點位供繪圖，不影響 PnL 計算
+        chart_trades.extend(extra_trades)
+        
+        # 對於詳細列表，也嘗試加入 (Optional, 但使用者可能想看每次扣款記錄)
+        for et in extra_trades:
+             detailed_trades.append({
+                "entry_date": et['time'],
+                "exit_date": "-",
+                "entry_price": safe_num(et['price']),
+                "exit_price": "-",
+                "size": 0,
+                "pnl": 0,
+                "return_pct": 0,
+                "entry_note": "定期定額",
+                "exit_note": "-"
+             })
+             
+    # Sort detailed trades by date
+    # Sort detailed trades by date
+    detailed_trades.sort(key=lambda x: str(x['entry_date']))
+
     heatmap_data = {}
     if not equity_curve.empty:
         eq_df = pd.DataFrame(equity_curve['Equity'])
@@ -339,12 +446,20 @@ async def run_backtest(params: BacktestRequest):
                 if date.year not in heatmap_data: heatmap_data[date.year] = {}
                 heatmap_data[date.year][date.month] = safe_num(row['Return'])
 
+    # --- Lump Sum Comparison (Total Capital All-in at Start) ---
+    # B&H Return [%] is accurate for Lump Sum % as well. 
+    # But we want to explicitly calculate the Lump Sum Amount Difference if needed?
+    # User asked for "Program to know total amount". We computed `total_invested`.
+    # Let's return it explicitly.
+    lump_sum_bh_return_pct = stats["Buy & Hold Return [%]"]
+
     return {
         "ticker": real_ticker,
         "final_equity": safe_num(stats["Equity Final [$]"], 0),
-        "total_return": safe_num(stats["Return [%]"]),
+        "total_invested": safe_num(total_invested), # New field: Total Capital Injected
+        "total_return": safe_num(adjusted_return),
         "annual_return": safe_num(stats["Return (Ann.) [%]"]),
-        "buy_and_hold_return": safe_num(stats["Buy & Hold Return [%]"]),
+        "buy_and_hold_return": safe_num(lump_sum_bh_return_pct), # This IS the All-in Return %
         "win_rate": safe_num(stats["Win Rate [%]"]),
         "winning_trades": winning_trades,
         "profit_factor": safe_num(stats.get("Profit Factor", 0)),
@@ -354,6 +469,7 @@ async def run_backtest(params: BacktestRequest):
         "max_drawdown": safe_num(stats["Max. Drawdown [%]"]),
         "sharpe_ratio": safe_num(stats["Sharpe Ratio"]),
         "equity_curve": equity_list,
+        "roi_curve": roi_list,
         "drawdown_curve": drawdown_list,
         "pnl_histogram": pnl_hist_data,  
         "price_data": price_list,

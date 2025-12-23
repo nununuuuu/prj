@@ -180,6 +180,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // 初始化基礎模式的限制與提示
     initStaticConstraints();
+
+    // 初始化定期定額 UI
+    initContributionUI();
 });
 
 // 靜態輸入框的限制與提示
@@ -229,100 +232,182 @@ function initStrategySelects() {
     });
 }
 
+function initContributionUI() {
+    const container = document.getElementById('contribution_days_container');
+    if (!container) return;
 
+    for (let i = 1; i <= 28; i++) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.innerText = i;
+        // 初始樣式
+        btn.className = "text-[10px] py-1 rounded border border-gray-200 dark:border-slate-500 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors bg-white dark:bg-slate-700/50 select-none";
 
-// 輔助函式：平滑高度切換
-function smoothToggle(showEl, hideEl) {
-    // 1. 處理要隱藏的元素 (Closing)
-    const currentHeight = hideEl.scrollHeight;
-    hideEl.style.maxHeight = currentHeight + "px";
-    hideEl.style.overflow = 'hidden';
-    hideEl.style.transition = 'all 0.4s ease-in-out';
-    hideEl.style.opacity = '1';
+        btn.onclick = function () {
+            this.toggleAttribute('data-active');
+            if (this.hasAttribute('data-active')) {
+                this.className = "text-[10px] py-1 rounded border border-blue-500 text-blue-600 dark:text-blue-300 font-black bg-blue-50 dark:bg-blue-900/30 transition-colors select-none ring-1 ring-blue-500";
+            } else {
+                this.className = "text-[10px] py-1 rounded border border-gray-200 dark:border-slate-500 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors bg-white dark:bg-slate-700/50 select-none";
+            }
+        };
+        container.appendChild(btn);
+    }
 
-    // 強制重繪，確保起始狀態生效
-    void hideEl.offsetHeight;
-
-    // 開始收合
-    hideEl.style.maxHeight = '0px';
-    hideEl.style.opacity = '0';
-
-    // 動畫結束後清理
-    setTimeout(() => {
-        hideEl.classList.add('hidden');
-        hideEl.style.maxHeight = '';
-        hideEl.style.opacity = '';
-        hideEl.style.overflow = '';
-        hideEl.style.transition = '';
-        hideEl.style.display = ''; // 清除 inline-style，避免影響下次切換
-    }, 400);
-
-    // 2. 處理要顯示的元素 (Opening)
-    // 關鍵：先設定初始狀態為隱藏 (0高度/透明)，再移除 hidden class，避免 FOUC (瞬間閃現)
-    showEl.style.maxHeight = '0px';
-    showEl.style.opacity = '0';
-    showEl.style.overflow = 'hidden';
-    showEl.style.transition = 'all 0.4s ease-in-out';
-
-    showEl.classList.remove('hidden');
-    showEl.style.display = 'block'; // 確保可以計算正確高度
-
-    // 取得目標高度
-    const targetHeight = showEl.scrollHeight + "px";
-
-    // 強制重繪
-    void showEl.offsetHeight;
-
-    // 開始展開
-    showEl.style.maxHeight = targetHeight;
-    showEl.style.opacity = '1';
-
-    // 動畫結束後清理
-    setTimeout(() => {
-        showEl.style.maxHeight = 'none'; // 解除高度限制
-        showEl.style.overflow = 'visible';
-        showEl.style.transition = '';
-        showEl.style.opacity = '';
-        showEl.style.display = ''; // 關鍵：清除 inline display，讓 class hidden 能在下次生效
-    }, 400);
+    const toggle = document.getElementById('enable_contribution');
+    const settings = document.getElementById('contribution_settings');
+    if (toggle && settings) {
+        toggle.addEventListener('change', function () {
+            if (this.checked) {
+                settings.classList.remove('hidden');
+                // 預設選中 1 號
+                // const firstBtn = container.querySelector('button');
+                // if(firstBtn && !container.querySelector('button[data-active]')) firstBtn.click();
+            } else {
+                settings.classList.add('hidden');
+            }
+        });
+    }
 }
 
+
+
+
+
 function switchMode(mode) {
-    if (currentMode === mode) return; // 避免重複點擊
+    if (currentMode === mode) return;
+    const oldMode = currentMode;
     currentMode = mode;
 
     const basicDiv = document.getElementById('basic-settings');
     const advDiv = document.getElementById('advanced-settings');
+
+    // Tab Elements
     const tabBasic = document.getElementById('tab-basic');
     const tabAdv = document.getElementById('tab-advanced');
+    const tabPer = document.getElementById('tab-periodic');
 
-    // 說明區塊與副標題 (維持直接切換或簡單淡入淡出，這裡簡單處理)
+    // Description Elements
     const descBasic = document.getElementById('desc-basic');
     const descAdv = document.getElementById('desc-advanced');
+    const descPer = document.getElementById('desc-periodic');
+
     const subBasic = document.getElementById('subtitle-basic');
     const subAdv = document.getElementById('subtitle-advanced');
+    const subPer = document.getElementById('subtitle-periodic');
+
+    const activeClass = "flex-1 py-1.5 rounded-md shadow-sm bg-white dark:bg-slate-600 text-blue-600 dark:text-blue-400 transition-all font-bold";
+    const inactiveClass = "flex-1 py-1.5 rounded-md text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-all";
+
+    // Update Tabs
+    tabBasic.className = mode === 'basic' ? activeClass : inactiveClass;
+    tabAdv.className = mode === 'advanced' ? activeClass : inactiveClass;
+    if (tabPer) tabPer.className = mode === 'periodic' ? activeClass : inactiveClass;
+
+    // Update Description Visibility
+    [descBasic, descAdv, descPer].forEach(el => el && el.classList.add('hidden'));
+    [subBasic, subAdv, subPer].forEach(el => el && el.classList.add('hidden'));
 
     if (mode === 'basic') {
-        smoothToggle(basicDiv, advDiv);
+        if (descBasic) descBasic.classList.remove('hidden');
+        if (subBasic) subBasic.classList.remove('hidden');
+    } else if (mode === 'advanced') {
+        if (descAdv) descAdv.classList.remove('hidden');
+        if (subAdv) subAdv.classList.remove('hidden');
+    } else if (mode === 'periodic') {
+        if (descPer) descPer.classList.remove('hidden');
+        if (subPer) subPer.classList.remove('hidden');
+    }
 
-        tabBasic.className = "flex-1 py-1.5 rounded-md shadow-sm bg-white dark:bg-slate-600 text-blue-600 dark:text-blue-400 transition-all font-bold";
-        tabAdv.className = "flex-1 py-1.5 rounded-md text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-all";
+    // Toggle Settings Area
+    // Logic: Periodic hides both Basic and Advanced DIVs
+    if (mode === 'periodic') {
+        // Hide All
+        if (!basicDiv.classList.contains('hidden')) smoothToggle(null, basicDiv); // Pass null as showEl to just close
+        if (!advDiv.classList.contains('hidden')) smoothToggle(null, advDiv);
 
-        descBasic.classList.remove('hidden');
-        subBasic.classList.remove('hidden');
-        descAdv.classList.add('hidden');
-        subAdv.classList.add('hidden');
+        // Open Periodic Fee Section (Fixed Fee)
+        const periodicFeeDiv = document.getElementById('periodic-fee-section');
+        if (periodicFeeDiv && periodicFeeDiv.classList.contains('hidden')) smoothToggle(periodicFeeDiv, null);
 
+        // Hide Common Risk Settings in Periodic Mode (Since it's Buy Only)
+        const riskDiv = document.getElementById('common-risk-settings');
+        if (riskDiv && !riskDiv.classList.contains('hidden')) smoothToggle(null, riskDiv);
+
+        // Auto-enable contribution checkbox if in periodic mode
+        const contribCheck = document.getElementById('enable_contribution');
+        const contribSettings = document.getElementById('contribution_settings');
+        if (contribCheck && !contribCheck.checked) {
+            contribCheck.checked = true;
+            if (contribSettings) contribSettings.classList.remove('hidden');
+        }
     } else {
-        smoothToggle(advDiv, basicDiv);
+        // Close Periodic Fee Section if open
+        const periodicFeeDiv = document.getElementById('periodic-fee-section');
+        if (periodicFeeDiv && !periodicFeeDiv.classList.contains('hidden')) smoothToggle(null, periodicFeeDiv);
 
-        tabBasic.className = "flex-1 py-1.5 rounded-md text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-all";
-        tabAdv.className = "flex-1 py-1.5 rounded-md shadow-sm bg-white dark:bg-slate-600 text-blue-600 dark:text-blue-400 transition-all font-bold";
+        // Show Common Risk Settings in other modes
+        const riskDiv = document.getElementById('common-risk-settings');
+        if (riskDiv && riskDiv.classList.contains('hidden')) smoothToggle(riskDiv, null);
 
-        descBasic.classList.add('hidden');
-        subBasic.classList.add('hidden');
-        descAdv.classList.remove('hidden');
-        subAdv.classList.remove('hidden');
+        // If coming from Periodic, we might need to open one
+        if (mode === 'basic') {
+            if (!advDiv.classList.contains('hidden')) smoothToggle(basicDiv, advDiv);
+            else if (basicDiv.classList.contains('hidden')) smoothToggle(basicDiv, null);
+        } else { // advanced
+            if (!basicDiv.classList.contains('hidden')) smoothToggle(advDiv, basicDiv);
+            else if (advDiv.classList.contains('hidden')) smoothToggle(advDiv, null);
+        }
+    }
+}
+
+// Override smoothToggle to handle null (just open or just close)
+function smoothToggle(showEl, hideEl) {
+    // 1. Close hideEl if exists
+    if (hideEl) {
+        const currentHeight = hideEl.scrollHeight;
+        hideEl.style.maxHeight = currentHeight + "px";
+        hideEl.style.overflow = 'hidden';
+        hideEl.style.transition = 'all 0.4s ease-in-out';
+        hideEl.style.opacity = '1';
+        void hideEl.offsetHeight; // force repaint
+
+        hideEl.style.maxHeight = '0px';
+        hideEl.style.opacity = '0';
+
+        setTimeout(() => {
+            hideEl.classList.add('hidden');
+            hideEl.style.maxHeight = '';
+            hideEl.style.opacity = '';
+            hideEl.style.overflow = '';
+            hideEl.style.transition = '';
+            hideEl.style.display = '';
+        }, 400);
+    }
+
+    // 2. Open showEl if exists
+    if (showEl) {
+        showEl.style.maxHeight = '0px';
+        showEl.style.opacity = '0';
+        showEl.style.overflow = 'hidden';
+        showEl.style.transition = 'all 0.4s ease-in-out';
+
+        showEl.classList.remove('hidden');
+        showEl.style.display = 'block';
+
+        const targetHeight = showEl.scrollHeight + "px";
+        void showEl.offsetHeight;
+
+        showEl.style.maxHeight = targetHeight;
+        showEl.style.opacity = '1';
+
+        setTimeout(() => {
+            showEl.style.maxHeight = 'none';
+            showEl.style.overflow = 'visible';
+            showEl.style.transition = '';
+            showEl.style.opacity = '';
+            showEl.style.display = '';
+        }, 400);
     }
 }
 
@@ -437,8 +522,39 @@ async function executeBacktest() {
         stop_loss_pct: parseFloat(document.getElementById('sl_pct').value),
         take_profit_pct: parseFloat(document.getElementById('tp_pct').value),
         trailing_stop_pct: parseFloat(document.getElementById('ts_pct').value) || 0,
+        stop_loss_pct: parseFloat(document.getElementById('sl_pct').value),
+        take_profit_pct: parseFloat(document.getElementById('tp_pct').value),
+        trailing_stop_pct: parseFloat(document.getElementById('ts_pct').value) || 0,
         strategy_mode: currentMode
     };
+
+    // 定期定額參數
+    const enableContrib = document.getElementById('enable_contribution').checked;
+    if (enableContrib || currentMode === 'periodic') {
+        payload.monthly_contribution_amount = parseFloat(document.getElementById('contribution_amount').value) || 0;
+        payload.monthly_contribution_fee = parseFloat(document.getElementById('contribution_fee').value) || 1; // Default 1
+        const activeBtns = document.querySelectorAll('#contribution_days_container button[data-active]');
+        const days = [];
+        activeBtns.forEach(btn => days.push(parseInt(btn.innerText)));
+
+        // [Fix] 若為定期定額模式且未選擇日期，預設為每月 1 號，並提示使用者
+        if (currentMode === 'periodic' && days.length === 0) {
+            days.push(1);
+            showToast("未選擇扣款日，已自動預設為每月 1 號", "info");
+
+            // UI 同步更新 (視覺上選中1號)
+            const firstBtn = document.querySelector('#contribution_days_container button');
+            if (firstBtn) {
+                firstBtn.setAttribute('data-active', '');
+                firstBtn.className = "text-[10px] py-1 rounded border border-blue-500 text-blue-600 dark:text-blue-300 font-black bg-blue-50 dark:bg-blue-900/30 transition-colors select-none ring-1 ring-blue-500";
+            }
+        }
+
+        payload.monthly_contribution_days = days;
+    } else {
+        payload.monthly_contribution_amount = 0;
+        payload.monthly_contribution_days = [];
+    }
 
     if (currentMode === 'basic') {
         payload.ma_short = parseInt(document.getElementById('ma_short').value);
@@ -549,7 +665,22 @@ function updateDashboard(data) {
     // 買進持有 - Count Up
     const bhEl = document.getElementById('res_bh_return');
     bhEl.className = "text-3xl font-bold mt-1 " + (data.buy_and_hold_return > 0 ? "text-teal-600 dark:text-teal-400" : (data.buy_and_hold_return < 0 ? "text-red-500 dark:text-red-400" : "text-gray-300 dark:text-gray-600"));
+
+    // Clear previous extra content logic
+    if (bhEl._bhTimeout) clearTimeout(bhEl._bhTimeout);
+
     animateCountUp('res_bh_return', data.buy_and_hold_return, 1000, false, true);
+
+    // [New] Show Lump Sum Final Equity Estimate (All-in comparison)
+    bhEl._bhTimeout = setTimeout(() => {
+        if (data.total_invested) {
+            const lumpSumEquity = data.total_invested * (1 + data.buy_and_hold_return / 100);
+            const subText = document.createElement('div');
+            subText.className = "text-xs font-medium text-slate-400 dark:text-slate-500 mt-1 tracking-tight";
+            subText.innerHTML = `(All-in 終值: $${Math.round(lumpSumEquity).toLocaleString()})`;
+            bhEl.appendChild(subText);
+        }
+    }, 1050);
 
     // 最終資產 - Count Up
     animateCountUp('res_final_equity', data.final_equity, 1500, true, false);
@@ -601,11 +732,12 @@ function updateDashboard(data) {
         trades: data.trades,
         equityData: data.equity_curve,
         bhData: data.buy_and_hold_curve,
+        roiData: data.roi_curve, // New
         drawdownCurve: data.drawdown_curve,
         pnlData: data.pnl_histogram
     };
 
-    renderMainChart(data.price_data, data.trades, data.equity_curve, data.buy_and_hold_curve);
+    renderMainChart(data.price_data, data.trades, data.equity_curve, data.buy_and_hold_curve, data.roi_curve);
     renderDrawdownChart(data.drawdown_curve);
     renderPnLHistogram(data.pnl_histogram);
     renderHeatmap(data.heatmap_data);
@@ -636,7 +768,7 @@ function updateTableValue(id, value, isGreenRed) {
 // =========================================================
 //  核心圖表繪製
 // =========================================================
-function renderMainChart(priceData, trades, equityData, bhData) {
+function renderMainChart(priceData, trades, equityData, bhData, roiData = null) {
     const ctx = document.getElementById('mainChart').getContext('2d');
     if (mainChart) mainChart.destroy();
 
@@ -650,14 +782,30 @@ function renderMainChart(priceData, trades, equityData, bhData) {
     const labels = priceData.map(d => d.time);
 
     // 資料計算
-    const initialEquity = equityData.length > 0 ? equityData[0].value : 1;
-    const strategyReturnData = equityData.map(d => ((d.value - initialEquity) / initialEquity) * 100);
+    // 如果有後端回傳的 ROI Curve (定期定額模式 or Basic)，直接使用
+    let strategyReturnData = [];
+    if (roiData && roiData.length > 0) {
+        strategyReturnData = roiData.map(d => d.value);
+    } else {
+        // Fallback for old compatibility
+        const initialEquity = equityData.length > 0 ? equityData[0].value : 1;
+        strategyReturnData = equityData.map(d => ((d.value - initialEquity) / initialEquity) * 100);
+    }
+
     const initialPrice = priceData.length > 0 ? priceData[0].value : 1;
     const bhReturnData = priceData.map(d => ((d.value - initialPrice) / initialPrice) * 100);
     const tradeMap = {};
+    // 建立查找表，確保買賣點對齊
     trades.forEach(t => { tradeMap[t.time] = { price: t.price, type: t.type }; });
-    const buyMarkers = labels.map((date, index) => { const t = tradeMap[date]; return (t && t.type === 'buy') ? strategyReturnData[index] : null; });
-    const sellMarkers = labels.map((date, index) => { const t = tradeMap[date]; return (t && t.type === 'sell') ? strategyReturnData[index] : null; });
+
+    const buyMarkers = labels.map((date, index) => {
+        const t = tradeMap[date];
+        return (t && t.type === 'buy') ? strategyReturnData[index] : null;
+    });
+    const sellMarkers = labels.map((date, index) => {
+        const t = tradeMap[date];
+        return (t && t.type === 'sell') ? strategyReturnData[index] : null;
+    });
 
     // --- Datasets 設定 ---
     const strategyDataset = {
@@ -743,7 +891,7 @@ function renderMainChart(priceData, trades, equityData, bhData) {
                                 const date = context.label;
                                 if (label.includes('鎖定')) return `${label}: ${context.parsed.y.toFixed(2)}%`;
                                 const t = tradeMap[date];
-                                if (t) return `${label}: $${t.price} (@ ${context.parsed.y.toFixed(2)}%)`;
+                                if (t) return `${label}: $${parseFloat(t.price).toFixed(2)} (@ ${context.parsed.y.toFixed(2)}%)`;
                             }
                             if (label) label += ': ';
                             if (context.parsed.y !== null) {

@@ -39,6 +39,35 @@
                             class="w-full bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg pl-6 p-2.5 text-sm dark:text-white">
                     </div>
                 </div>
+                <!-- 定期定額設定 -->
+                <div class="mt-2">
+                    <div class="flex items-center justify-between mb-1">
+                        <label
+                            class="block text-xs font-medium text-gray-600 dark:text-gray-400 cursor-pointer select-none"
+                            for="enable_contribution">
+                            定期投入 (月)
+                        </label>
+                        <input type="checkbox" id="enable_contribution"
+                            class="w-3.5 h-3.5 text-blue-600 rounded border-gray-300 focus:ring-blue-500 dark:bg-slate-700 dark:border-slate-600">
+                    </div>
+                    <div id="contribution_settings"
+                        class="hidden space-y-2 bg-white dark:bg-slate-700/30 p-2.5 rounded-lg border border-gray-200 dark:border-slate-600 mt-1">
+                        <div class="relative">
+                            <span class="absolute left-2 top-1.5 text-gray-400 text-xs font-bold">$</span>
+                            <input type="number" id="contribution_amount" value="10000" step="1000"
+                                class="w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded pl-5 p-1 text-xs dark:text-white focus:border-blue-500 transition-colors"
+                                placeholder="金額">
+                        </div>
+
+                        <div>
+                            <span class="text-[10px] text-gray-500 dark:text-gray-400 block mb-1.5 font-medium">扣款日
+                                (可多選)</span>
+                            <div class="grid grid-cols-7 gap-1" id="contribution_days_container">
+                                <!-- JS 填充 1-28 -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <div class="grid grid-cols-2 gap-2">
                     <div><label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">開始日期</label>
                         <input type="date" id="start_date"
@@ -62,6 +91,10 @@
                 <button type="button" id="tab-advanced" onclick="switchMode('advanced')"
                     class="flex-1 py-1.5 rounded-md text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-all">
                     自定義模式
+                </button>
+                <button type="button" id="tab-periodic" onclick="switchMode('periodic')"
+                    class="flex-1 py-1.5 rounded-md text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-all">
+                    定期定額
                 </button>
             </div>
 
@@ -142,7 +175,8 @@
 
                     <!-- 進場策略 2 -->
                     <div>
-                        <span class="text-[11px] text-gray-500 dark:text-gray-400 mb-1 block">輔助策略 (AND)</span>
+                        <span class="text-[11px] text-gray-500 dark:text-gray-400 mb-1 block">輔助策略
+                            (AND)</span>
                         <select id="entry_strategy_2" onchange="renderParams('entry', 2)"
                             class="w-full text-xs p-1.5 border rounded mb-2 dark:bg-slate-700 dark:border-slate-600 dark:text-white">
                             <option value="">(不使用)</option>
@@ -170,7 +204,8 @@
 
                     <!-- 出場策略 2 -->
                     <div>
-                        <span class="text-[11px] text-gray-500 dark:text-gray-400 mb-1 block">輔助策略 (OR)</span>
+                        <span class="text-[11px] text-gray-500 dark:text-gray-400 mb-1 block">輔助策略
+                            (OR)</span>
                         <select id="exit_strategy_2" onchange="renderParams('exit', 2)"
                             class="w-full text-xs p-1.5 border rounded mb-2 dark:bg-slate-700 dark:border-slate-600 dark:text-white">
                             <option value="">(不使用)</option>
@@ -180,23 +215,44 @@
                 </div>
             </div>
 
+            <!-- C. 定期定額模式專屬設定 (手續費) -->
+            <div id="periodic-fee-section" class="hidden space-y-3">
+                <div
+                    class="bg-emerald-50 dark:bg-emerald-900/20 p-3 rounded-lg border border-emerald-100 dark:border-emerald-800">
+                    <label class="text-xs font-bold text-emerald-800 dark:text-emerald-300 mb-2 block">定期定額手續費
+                    </label>
+                    <div class="relative items-center flex gap-2">
+                        <div class="relative flex-1">
+                            <span class="absolute left-2 top-1.5 text-gray-400 text-xs font-bold">$</span>
+                            <input type="number" id="contribution_fee" value="1" step="1"
+                                class="w-full bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-700/50 rounded pl-5 p-1 text-xs dark:text-white focus:border-emerald-500 transition-colors"
+                                placeholder="手續費">
+                        </div>
+                        <span class="text-[10px] text-gray-400 whitespace-nowrap">元/筆</span>
+                    </div>
+                </div>
+            </div>
+
             <hr class="border-gray-100 dark:border-slate-700">
 
             <!-- 共用風險控制 -->
-            <div class="space-y-3">
+            <div id="common-risk-settings" class="space-y-3">
                 <label
                     class="block text-sm font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">風險控制</label>
                 <div class="grid grid-cols-3 gap-3">
-                    <div><label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">固定停損 (%)</label>
+                    <div><label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">固定停損
+                            (%)</label>
                         <input type="number" id="sl_pct" value="0" step="0.5"
                             class="w-full border border-gray-200 dark:border-slate-600 rounded-lg p-2 text-sm text-red-600 dark:text-red-400 font-bold bg-red-50 dark:bg-red-900/20 focus:bg-white dark:focus:bg-slate-700 transition">
                     </div>
-                    <div><label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">固定停利 (%)</label>
+                    <div><label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">固定停利
+                            (%)</label>
                         <input type="number" id="tp_pct" value="0" step="0.5"
                             class="w-full border border-gray-200 dark:border-slate-600 rounded-lg p-2 text-sm text-green-600 dark:text-green-400 font-bold bg-green-50 dark:bg-green-900/20 focus:bg-white dark:focus:bg-slate-700 transition">
                     </div>
                     <!-- 移動停損 -->
-                    <div><label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">移動停損 (%)</label>
+                    <div><label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">移動停損
+                            (%)</label>
                         <input type="number" id="ts_pct" value="0" step="0.5"
                             class="w-full border border-gray-200 dark:border-slate-600 rounded-lg p-2 text-sm text-orange-600 dark:text-orange-400 font-bold bg-orange-50 dark:bg-orange-900/20 focus:bg-white dark:focus:bg-slate-700 transition">
                     </div>
@@ -258,8 +314,10 @@
                         <span id="subtitle-basic">
                             <span
                                 class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-black bg-slate-100 text-slate-700 dark:bg-slate-200 dark:text-slate-900 mr-2 uppercase tracking-wide shadow-sm">核心邏輯</span>
-                            採用 <span class="text-slate-700 dark:text-slate-200 font-black">雙均線 (MA)</span> 搭配 <span
-                                class="text-slate-700 dark:text-slate-200 font-black">RSI</span> 指標的順勢交易策略。
+                            採用 <span class="text-slate-700 dark:text-slate-200 font-black">雙均線 (MA)</span>
+                            搭配
+                            <span class="text-slate-700 dark:text-slate-200 font-black">RSI</span>
+                            指標的順勢交易策略。
                         </span>
                         <span id="subtitle-advanced" class="hidden">
                             <span
@@ -267,18 +325,30 @@
                             您目前處於 <span
                                 class="text-slate-700 dark:text-slate-200 font-black underline decoration-2 underline-offset-4">自定義模式</span>，由多個技術指標驅動。
                         </span>
+                        <span id="subtitle-periodic" class="hidden">
+                            <span
+                                class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300 mr-2 uppercase tracking-wide shadow-sm">定期定額</span>
+                            <span class="text-slate-700 dark:text-slate-200 font-black"></span>忽略技術指標，專注於固定時間買入並長期持有。
+                        </span>
                     </div>
                 </div>
 
                 <!-- 基礎模式說明 -->
                 <div id="desc-basic" class="p-6 text-sm text-gray-600 dark:text-gray-300 leading-relaxed space-y-2">
                     <ul class="list-disc pl-5 space-y-1">
-                        <li><span class="font-bold text-gray-700 dark:text-gray-200">進場條件：</span> 當短期均線 <span
-                                class="text-red-500 dark:text-red-400 font-bold">向上突破</span> 長期均線 (黃金交叉)，且 RSI 指標 <span
-                                class="text-green-600 dark:text-green-400 font-bold">小於</span> 設定上限時，執行買入。</li>
-                        <li><span class="font-bold text-gray-700 dark:text-gray-200">出場條件：</span> 當短期均線 <span
-                                class="text-green-600 dark:text-green-400 font-bold">向下跌破</span> 長期均線 (死亡交叉)，或 RSI 指標
-                            <span class="text-red-500 dark:text-red-400 font-bold">大於</span> 出場閾值 (過熱) 時，執行賣出。
+                        <li><span class="font-bold text-gray-700 dark:text-gray-200">進場條件：</span> 當短期均線
+                            <span class="text-red-500 dark:text-red-400 font-bold">向上突破</span> 長期均線 (黃金交叉)，且
+                            RSI
+                            指標
+                            <span class="text-green-600 dark:text-green-400 font-bold">小於</span> 設定上限時，執行買入。
+                        </li>
+                        <li><span class="font-bold text-gray-700 dark:text-gray-200">出場條件：</span> 當短期均線
+                            <span class="text-green-600 dark:text-green-400 font-bold">向下跌破</span> 長期均線
+                            (死亡交叉)，或
+                            RSI
+                            指標
+                            <span class="text-red-500 dark:text-red-400 font-bold">大於</span> 出場閾值 (過熱)
+                            時，執行賣出。
                         </li>
                     </ul>
                 </div>
@@ -290,6 +360,20 @@
                     <ul class="list-disc pl-5 mt-2 space-y-1 text-gray-500">
                         <li>支援多指標組合 (例如: MACD 黃金交叉 + RSI 超賣)。</li>
                         <li>每個策略的參數皆可獨立設定。</li>
+                    </ul>
+                </div>
+
+                <!-- 定期定額模式說明 (預設隱藏) -->
+                <div id="desc-periodic"
+                    class="p-6 text-sm text-gray-600 dark:text-gray-300 leading-relaxed space-y-2 hidden">
+                    <p>此模式模擬 <span class="font-bold text-gray-800 dark:text-white">DCA (Dollar-Cost
+                            Averaging)</span> 策略。</p>
+                    <ul class="list-disc pl-5 mt-2 space-y-1 text-gray-500">
+                        <li><span
+                                class="font-bold text-emerald-600 dark:text-emerald-400">買入規則</span>：每逢設定的扣款日，將定額資金買入股票
+                            (若遇假日則順延至下一個交易日)。</li>
+                        <li><span class="font-bold text-gray-700 dark:text-gray-200">賣出規則</span>：<span
+                                class="text-red-500 font-bold">無</span>。此模式只進不出，直到回測結束。</li>
                     </ul>
                 </div>
             </div>
@@ -306,10 +390,12 @@
                                     d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
                             </svg>
                         </div>
-                        <p class="text-sm font-black text-slate-500 dark:text-slate-400 uppercase tracking-tight">總報酬率
+                        <p class="text-sm font-black text-slate-500 dark:text-slate-400 uppercase tracking-tight">
+                            總報酬率
                         </p>
                     </div>
-                    <p class="text-4xl font-black text-slate-900 dark:text-white mt-1" id="res_total_return">--%</p>
+                    <p class="text-4xl font-black text-slate-900 dark:text-white mt-1" id="res_total_return">--%
+                    </p>
                 </div>
 
                 <div
@@ -322,10 +408,13 @@
                                     d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                             </svg>
                         </div>
-                        <p class="text-sm font-black text-slate-500 dark:text-slate-400 uppercase tracking-tight">買進並持有
+                        <p class="text-sm font-black text-slate-500 dark:text-slate-400 uppercase tracking-tight">
+                            買進並持有
                         </p>
                     </div>
-                    <p class="text-4xl font-black text-slate-900 dark:text-white mt-1" id="res_bh_return">--%</p>
+                    <p class="text-4xl font-black text-slate-900 dark:text-white mt-1" id="res_bh_return">
+                        --%
+                    </p>
                 </div>
 
                 <div
@@ -338,10 +427,13 @@
                                     d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                             </svg>
                         </div>
-                        <p class="text-sm font-black text-slate-500 dark:text-slate-400 uppercase tracking-tight">勝率</p>
+                        <p class="text-sm font-black text-slate-500 dark:text-slate-400 uppercase tracking-tight">
+                            勝率
+                        </p>
                     </div>
                     <div class="flex items-baseline gap-2 mt-1">
-                        <p class="text-4xl font-black text-slate-900 dark:text-white" id="res_win_rate">--%</p>
+                        <p class="text-4xl font-black text-slate-900 dark:text-white" id="res_win_rate">--%
+                        </p>
                         <span class="text-sm font-bold text-slate-400 dark:text-slate-500 tracking-tight">(<span
                                 id="res_trades">--/--</span>)</span>
                     </div>
@@ -397,7 +489,8 @@
                 <div
                     class="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 transition-all duration-300 hover:shadow-md hover:scale-[1.01] hover:border-red-200 dark:hover:border-red-900/50">
                     <div class="mb-4">
-                        <h3 class="font-black text-gray-800 dark:text-white text-lg tracking-tight">回撤風險</h3>
+                        <h3 class="font-black text-gray-800 dark:text-white text-lg tracking-tight">回撤風險
+                        </h3>
                         <p class="text-xs text-gray-500 dark:text-gray-400">資產從高點回落的幅度</p>
                     </div>
                     <div class="relative w-full h-[200px]">
@@ -409,7 +502,8 @@
                 <div
                     class="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 transition-all duration-300 hover:shadow-md hover:scale-[1.01] hover:border-green-200 dark:hover:border-green-900/50">
                     <div class="mb-4">
-                        <h3 class="font-black text-gray-800 dark:text-white text-lg tracking-tight">損益分佈</h3>
+                        <h3 class="font-black text-gray-800 dark:text-white text-lg tracking-tight">損益分佈
+                        </h3>
                         <p class="text-xs text-gray-500 dark:text-gray-400">每筆交易報酬率的分佈頻率</p>
                     </div>
                     <div class="relative w-full h-[200px]">
@@ -451,7 +545,8 @@
                                         <th class="p-2">Oct</th>
                                         <th class="p-2">Nov</th>
                                         <th class="p-2">Dec</th>
-                                        <th class="p-2 font-bold text-gray-600 dark:text-gray-300">Total</th>
+                                        <th class="p-2 font-bold text-gray-600 dark:text-gray-300">Total
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody id="heatmapBody" class="text-xs dark:text-gray-300">
@@ -477,7 +572,8 @@
                                     </tr>
                                     <tr>
                                         <td class="p-3 text-gray-600 dark:text-gray-300">年化報酬率</td>
-                                        <td class="p-3 font-bold text-right dark:text-gray-200" id="tbl_ann_return">--%
+                                        <td class="p-3 font-bold text-right dark:text-gray-200" id="tbl_ann_return">
+                                            --%
                                         </td>
                                     </tr>
                                     <tr class="bg-gray-50 dark:bg-slate-700/50">
@@ -492,7 +588,8 @@
                                     </tr>
                                     <tr class="bg-gray-50 dark:bg-slate-700/50">
                                         <td class="p-3 text-gray-600 dark:text-gray-300">勝率</td>
-                                        <td class="p-3 font-bold text-right dark:text-gray-200" id="tbl_win_rate">--%
+                                        <td class="p-3 font-bold text-right dark:text-gray-200" id="tbl_win_rate">
+                                            --%
                                         </td>
                                     </tr>
                                     <tr>
@@ -502,7 +599,8 @@
                                     </tr>
                                     <tr>
                                         <td class="p-3 text-gray-600 dark:text-gray-300">平均盈虧</td>
-                                        <td class="p-3 font-bold text-right dark:text-gray-200" id="res_avg_pnl">--</td>
+                                        <td class="p-3 font-bold text-right dark:text-gray-200" id="res_avg_pnl">--
+                                        </td>
                                     </tr>
                                     <tr class="bg-gray-50 dark:bg-slate-700/50">
                                         <td class="p-3 text-gray-600 dark:text-gray-300">最大連虧次數</td>
