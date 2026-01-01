@@ -12,7 +12,6 @@ class BacktestRequest(BaseModel):
     sell_fee_pct: float = Field(default=0.4425, ge=0, le=10, description="Sell fee percentage")
     
     # --- 模式選擇 ---
-    # 基礎 or 進階
     strategy_mode: str = "basic" 
 
     # --- 定期定額 ---
@@ -32,7 +31,6 @@ class BacktestRequest(BaseModel):
     trailing_stop_pct: float = 0.0 
 
     # --- 進階模式參數 ---
-    # 策略名稱
     entry_strategy_1: Optional[str] = None
     entry_params_1: Dict[str, float] = {}
     
@@ -63,7 +61,7 @@ class BacktestResponse(BaseModel):
 
     pnl_histogram: Dict[str, List] 
     equity_curve: List[Dict]
-    roi_curve: List[Dict] # 新增 ROI 曲線 (針對定期定額正確計算)
+    roi_curve: List[Dict] 
     drawdown_curve: List[Dict]
     price_data: List[Dict]
     trades: List[Dict]
