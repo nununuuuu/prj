@@ -537,12 +537,11 @@ async function executeBacktest() {
         const days = [];
         activeBtns.forEach(btn => days.push(parseInt(btn.innerText)));
 
-        // [Fix] 若為定期定額模式且未選擇日期，預設為每月 1 號，並提示使用者
+        // 若為定期定額模式且未選擇日期，預設為每月 1 號，並提示使用者
         if (currentMode === 'periodic' && days.length === 0) {
             days.push(1);
             showToast("未選擇扣款日，已自動預設為每月 1 號", "info");
 
-            // UI 同步更新 (視覺上選中1號)
             const firstBtn = document.querySelector('#contribution_days_container button');
             if (firstBtn) {
                 firstBtn.setAttribute('data-active', '');
@@ -607,6 +606,30 @@ async function executeBacktest() {
     }
 }
 
+async function shutdownSystem() {
+    if (!confirm("確定要關閉系統並停止伺服器嗎？")) return;
+
+    try {
+        // 先嘗試關閉後端
+        await fetch('/api/shutdown', { method: 'POST' });
+    } catch (e) {
+        console.log("Shutdown signal sent.");
+    }
+
+    // 顯示關閉訊息並關閉視窗
+    document.body.innerHTML = `
+        <div style="height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;background:#0f172a;color:white;font-family:sans-serif;">
+            <svg style="width:64px;height:64px;margin-bottom:1rem;color:#ef4444;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+            <h1 style="font-size:1.5rem;font-weight:bold;margin-bottom:0.5rem;">系統已關閉</h1>
+            <p style="color:#94a3b8;">您可以安全地關閉此分頁了。</p>
+        </div>
+    `;
+
+    setTimeout(() => {
+        window.close();
+    }, 2000);
+}
+
 
 
 function animateCountUp(elementId, targetValue, duration = 1000, isCurrency = false, isPct = false, showPositiveSign = true) {
@@ -666,12 +689,10 @@ function updateDashboard(data) {
     const bhEl = document.getElementById('res_bh_return');
     bhEl.className = "text-3xl font-bold mt-1 " + (data.buy_and_hold_return > 0 ? "text-teal-600 dark:text-teal-400" : (data.buy_and_hold_return < 0 ? "text-red-500 dark:text-red-400" : "text-gray-300 dark:text-gray-600"));
 
-    // Clear previous extra content logic
     if (bhEl._bhTimeout) clearTimeout(bhEl._bhTimeout);
 
     animateCountUp('res_bh_return', data.buy_and_hold_return, 1000, false, true);
 
-    // [New] Show Lump Sum Final Equity Estimate (All-in comparison)
     bhEl._bhTimeout = setTimeout(() => {
         if (data.total_invested) {
             const lumpSumEquity = data.total_invested * (1 + data.buy_and_hold_return / 100);
@@ -699,7 +720,7 @@ function updateDashboard(data) {
 
     const mddEl = document.getElementById('tbl_mdd');
     mddEl.className = "p-3 font-bold text-right text-red-500 dark:text-red-400";
-    animateCountUp('tbl_mdd', Math.abs(data.max_drawdown), 800, false, true, false); // 不顯示正號
+    animateCountUp('tbl_mdd', Math.abs(data.max_drawdown), 800, false, true, false);
 
     updateTableValue('tbl_win_rate', data.win_rate, true);
 
@@ -716,7 +737,6 @@ function updateDashboard(data) {
     const pnlEl = document.getElementById('res_avg_pnl');
     const pnlVal = data.avg_pnl;
     pnlEl.className = "p-3 font-bold text-right " + (pnlVal >= 0 ? "text-green-600 dark:text-green-400" : "text-red-500 dark:text-red-400");
-    // 平均盈虧太快，直接顯示或也可以做動畫，這邊先維持直接顯示帶符號
     pnlEl.innerText = (pnlVal > 0 ? '+' : '') + pnlVal.toLocaleString();
 
     document.getElementById('res_consec_loss').innerText = data.max_consecutive_loss + " 次";
@@ -732,7 +752,7 @@ function updateDashboard(data) {
         trades: data.trades,
         equityData: data.equity_curve,
         bhData: data.buy_and_hold_curve,
-        roiData: data.roi_curve, // New
+        roiData: data.roi_curve,
         drawdownCurve: data.drawdown_curve,
         pnlData: data.pnl_histogram
     };
@@ -751,7 +771,6 @@ function updateCard(id, value, isPct) {
     else if (value < 0) el.classList.add("text-red-500", "dark:text-red-400");
     else el.classList.add("text-gray-300", "dark:text-gray-600");
 
-    // 使用動畫函數
     animateCountUp(id, value, 1000, false, isPct);
 }
 
@@ -787,7 +806,6 @@ function renderMainChart(priceData, trades, equityData, bhData, roiData = null) 
     if (roiData && roiData.length > 0) {
         strategyReturnData = roiData.map(d => d.value);
     } else {
-        // Fallback for old compatibility
         const initialEquity = equityData.length > 0 ? equityData[0].value : 1;
         strategyReturnData = equityData.map(d => ((d.value - initialEquity) / initialEquity) * 100);
     }

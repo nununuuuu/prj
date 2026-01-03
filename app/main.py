@@ -14,12 +14,10 @@ import numpy as np
 import math
 import os
 
-# --- 相容性補丁 ---
 if not hasattr(pd.Series, 'iteritems'):
     pd.Series.iteritems = pd.Series.items
 if not hasattr(np, 'float'):
     np.float = float
-# ----------------
 
 from .strategy import UniversalStrategy
 from .schemas import BacktestRequest, BacktestResponse
@@ -165,6 +163,37 @@ def get_indicator_note(strategy, strat_name, strat_params, idx):
     except Exception:
         return ""
     return strat_name
+
+
+@app.post("/api/shutdown")
+def shutdown_event():
+    import os
+    import threading
+    import time
+    import psutil
+    
+    def kill():
+        print("使用者請求關閉系統，正在終止伺服器...")
+        time.sleep(0.5)
+        
+        try:
+            # 獲取當前進程 (子進程)
+            current_process = psutil.Process(os.getpid())
+            # 嘗試獲取父進程 (Uvicorn Watcher)
+            parent = current_process.parent()
+            
+            # 如果有父進程，先殺父進程
+            if parent:
+                print(f"正在結束主程序 (PID: {parent.pid})...")
+                parent.terminate()
+        except Exception as e:
+            print(f"關閉主程序時發生錯誤: {e}")
+
+        # 最後強制結束自己
+        os._exit(0)
+        
+    threading.Thread(target=kill).start()
+    return {"message": "系統正在關閉..."}
 
 @app.post("/api/backtest", response_model=BacktestResponse)
 async def run_backtest(params: BacktestRequest):
